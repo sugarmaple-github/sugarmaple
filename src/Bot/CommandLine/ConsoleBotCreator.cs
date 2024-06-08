@@ -27,14 +27,14 @@ internal class ConsoleBotState
             FileUtil.Write("after_edit.txt", body.OuterMarkup);
             Console.WriteLine($"{title} 결과:");
             string message;
-            //if (body.HasModified)
-            //{
-            message = "편집을 승인하려면 엔터 키를 눌러주세요. 편집 모드를 중단하려면 s를 누르세요.";
-            //}
-            //else
-            //{
-            //    message = "본 문서의 내용이 똑같습니다. 계속하려면 엔터 키를 눌러주세요. 편집 모드를 중단하려면 s를 누르세요.";
-            //}
+            if (body.HasModified())
+            {
+                message = "편집을 승인하려면 엔터 키를 눌러주세요. 편집 모드를 중단하려면 s를 누르세요.";
+            }
+            else
+            {
+                message = "본 문서의 내용이 똑같습니다. 계속하려면 엔터 키를 눌러주세요. 편집 모드를 중단하려면 s를 누르세요.";
+            }
             Console.WriteLine(message);
 
             var line = Console.ReadLine() ?? throw new Exception("Something Wrong");

@@ -7,4 +7,5 @@ internal static class MarkupRawCache
     public static void Add(object clause, StringSegment value) => _markupCache[clause] = value;
     public static void Remove(object clause) => _markupCache.Remove(clause);
     public static bool TryGetValue(object clause, out StringSegment value) => _markupCache.TryGetValue(clause, out value);
+    public static bool HasModified(this Document document) => !_markupCache.ContainsKey(document);
 }

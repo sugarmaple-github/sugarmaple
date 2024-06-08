@@ -33,7 +33,7 @@ internal class NamumarkProcess
         }
 
         var index = 0;
-        var heading = new ASTNode();
+        var heading = new ASTNode(ASTNodeType.Heading, 0, 0);
         while (index < _raw.Length)
         {
             var content = GetClauses(ref index, out var newHeading);

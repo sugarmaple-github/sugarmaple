@@ -71,7 +71,7 @@ public class SeedBot : SeedApiClient
         UserDoc = "사용자:" + userName;
         UserName = userName;
         _discussNum = GetDiscussCount();
-        WikiNamespaces = wikiNamespaces;
+        WikiNamespaces = NamespaceMask.DefaultNamespaces.Concat(wikiNamespaces).ToArray();
     }
 
     public void Dispose()

@@ -29,8 +29,8 @@ public static class SeedBotExtensions
         {
             var doc = DocumentFactory.Default.Parse(view.Text);
             yield return doc;
-            doc.Dispose();
             view.PostEditAsync(NamuFormatter.Default.ToMarkup(doc), log);
+            doc.Dispose();
         }
     }
 
@@ -205,9 +205,10 @@ public readonly struct NamespaceMask
     public static readonly NamespaceMask File = new(1 << 3);
     public static readonly NamespaceMask User = new(1 << 4);
     public static readonly NamespaceMask Special = new(1 << 5);
-    public static readonly NamespaceMask Wiki = new(1 << 5);
+    public static readonly NamespaceMask Wiki = new(1 << 6);
 
-
+    public static IReadOnlyCollection<string> DefaultNamespaces =
+        new[] { "문서", "틀", "분류", "파일", "사용자", "특수기능" };
 
     public List<string> ToNames(string[] wikiNamespaces)
     {

@@ -5,6 +5,7 @@ using System.Text;
 public class Document : FixedClauseParent<Document, Paragraph>, IDisposable
 {
     public string BaseUri { get; internal set; }
+
     protected override IParentElement? ParentInner { get => null; set => throw new InvalidOperationException("Document Element can't use Parent"); }
 
     public void Dispose()

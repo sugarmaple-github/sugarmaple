@@ -99,7 +99,7 @@ public class ElementList<T> : IList<T>, IReadOnlyList<T> where T : IElement
         get => ((IList<T>)_items)[index]; set
         {
             ((IList<T>)_items)[index] = value;
-            Parent.AsWeak().NotifyModifying();
+            Parent.AsWeak().NotifyChange();
         }
     }
 

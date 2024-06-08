@@ -37,7 +37,7 @@ public abstract class Macro : Clause
     protected void InvalidateArgument()
     {
         _isArgumentValid = false;
-        NotifyModifying();
+        NotifyChange();
     }
 
     private protected Macro()

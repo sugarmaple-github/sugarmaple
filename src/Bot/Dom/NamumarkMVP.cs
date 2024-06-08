@@ -71,7 +71,7 @@ public class CategoryLink : Clause, IReferer
         get => _reference; set
         {
             _reference = value;
-            NotifyModifying();
+            NotifyChange();
         }
     }
     public string? Display
@@ -79,7 +79,7 @@ public class CategoryLink : Clause, IReferer
         get => _display; set
         {
             _display = value;
-            NotifyModifying();
+            NotifyChange();
         }
     }
     public bool Blur { get => _blur; set => _blur = value; }
@@ -205,7 +205,7 @@ public class FileLink : Clause, IReferer
         {
             {
                 _reference = value;
-                NotifyModifying();
+                NotifyChange();
             }
         }
     }

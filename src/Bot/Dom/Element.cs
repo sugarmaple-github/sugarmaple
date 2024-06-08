@@ -1,5 +1,6 @@
 ﻿namespace Sugarmaple.TheSeed.Namumark;
 
+using System.ComponentModel;
 using System.Diagnostics;
 
 internal interface IWeakElement
@@ -8,13 +9,8 @@ internal interface IWeakElement
 }
 
 [DebuggerDisplay("{" + nameof(OuterMarkup) + "}")]
-public abstract class Element : IElement, IWeakElement
+public abstract class Element : IElement, IWeakElement, IChangeTracking
 {
-    [Obsolete]
-    private bool _hasModified;
-    [Obsolete]
-    internal bool HasModified { get => _hasModified; set => _hasModified = value; }
-
     private Document? _ownerDocument;
 
     public string OuterMarkup
@@ -52,24 +48,31 @@ public abstract class Element : IElement, IWeakElement
 
     public Document? OwnerDocument { get => _ownerDocument; set => _ownerDocument = value; }
 
+    public bool IsChanged { get; private set; }
+
     protected void ChangeMember<T>(ref T member, T value)
     {
-        NotifyModifying();
+        NotifyChange();
         member = value;
     }
 
-    internal void NotifyModifying()
+    internal void NotifyChange()
     {
-        _hasModified = true;
+        IsChanged = true;
         MarkupRawCache.Remove(this);
         if (Parent is Element e)
-            e.NotifyModifying();
+            e.NotifyChange();
     }
 
     public virtual void Normalize()
     {
         if (this is IParentElement p)
             p.NormalizeChildren();
+    }
+
+    public void AcceptChanges()
+    {
+        IsChanged = false;
     }
 }
 

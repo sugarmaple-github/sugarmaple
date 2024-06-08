@@ -8,7 +8,7 @@ string inputStr;
 var rootCmd = new MainCommand();
 while (true)
 {
-    var input = Console.Read();
+    var input = Console.ReadLine()![0];
     if (input is 'C' or 'c')
     {
         inputStr = $"order execute {taskFile};";

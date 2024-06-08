@@ -27,7 +27,7 @@ public static class SeedBotExtensions
         {
             var doc = DocumentFactory.Default.Parse(view.Text);
             yield return doc;
-            view.PostEditAsync(NamuFormatter.Default.ToMarkup(doc), log);
+            _bot.PostEditAsync(view, doc, log);
             doc.Dispose();
         }
     }

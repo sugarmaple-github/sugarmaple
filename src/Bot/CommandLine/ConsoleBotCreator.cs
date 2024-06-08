@@ -18,16 +18,16 @@ internal class ConsoleBotState
         }
     }
 
-    public string BeforeEveryPost(string title, string body_)
+    public string BeforeEveryPost(string title, Document body)
     {
-        var body = DocumentFactory.Default.Parse(body_);
-        var ret = body.OuterMarkup;
+        var formatter = NamuFormatter.Default;
+        var ret = formatter.ToMarkup(body);
         if (_checkEditMod)
         {
-            FileUtil.Write("after_edit.txt", body.OuterMarkup);
+            FileUtil.Write("after_edit.txt", ret);
             Console.WriteLine($"{title} 결과:");
             string message;
-            if (body.HasModified())
+            if (body.IsChanged)
             {
                 message = "편집을 승인하려면 엔터 키를 눌러주세요. 편집 모드를 중단하려면 s를 누르세요.";
             }
@@ -96,7 +96,7 @@ internal class ConsoleBotCreator
         var state = new ConsoleBotState();
         var bot = new SeedBot(wikiUri, wikiApiUri, apiToken, userName, wikiNamespaces);
         bot.OnGetEditSuccessfully += state.BeforeEveryEdit;
-        bot.BeforeEveryPost += state.BeforeEveryPost;
+        bot.DocumentPosting += state.BeforeEveryPost;
         bot.OnPostSameDoc += state.OnEditWhenNoDiff;
         bot.OnPostSuccessfully.Event += state.OnEveryPost;
         bot.OnLackOfPermission += state.OnLackOfPermission;

@@ -40,7 +40,7 @@ public class ExternalLink : ParentClause, IParentLink
     public string Reference { get => _reference; set => ChangeMember(ref _reference, value); }
 }
 
-public interface IReferer
+public interface IReferer: IElement
 {
     string Reference { get; set; }
     void ReplaceWith(Clause clause);

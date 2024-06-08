@@ -36,7 +36,11 @@ public static class SeedBotExtensions
         => _bot.BacklinkReferers<IReferer>(document, @namespace, fromValue, log);
 
     public static IEnumerable<T> BacklinkReferers<T>(this SeedBot _bot, string document, NamespaceMask @namespace, string fromValue, string log) where T : IReferer
-        => _bot.BacklinkBodies(document, @namespace, fromValue, log).SelectMany(o => o.QuerySelectorAll<T>("*")).Where(o => o.Reference == document);
+        => _bot.BacklinkBodies(document, @namespace, fromValue, log).SelectMany(o => o.QuerySelectorAll<T>("*")).Where(o =>
+        {
+            NamuNormalizer.Default.Normalize(o);
+            return o.Reference == document;
+        });
 
     /// <summary>
     /// 

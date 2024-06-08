@@ -80,5 +80,4 @@ public interface IElement
     string LocalName { get; }
     Document? OwnerDocument { get; set; }
     string OuterMarkup { get; }
-    void Normalize();
 }

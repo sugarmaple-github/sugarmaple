@@ -14,7 +14,6 @@ public class DocumentFactory
         var parser = new Parser();
         parser._raw = content;
         var doc = (Document)parser.Parse(astTree);
-        doc.Normalize();
         return doc;
     }
 }

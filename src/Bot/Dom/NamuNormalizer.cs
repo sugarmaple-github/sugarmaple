@@ -1,6 +1,4 @@
-﻿using Sugarmaple.TheSeed.Namumark;
-
-namespace Sugarmaple.TheSeed.Namumark;
+﻿namespace Sugarmaple.TheSeed.Namumark;
 
 public class NamuNormalizer
 {

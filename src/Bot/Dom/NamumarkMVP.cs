@@ -40,7 +40,7 @@ public class ExternalLink : ParentClause, IParentLink
     public string Reference { get => _reference; set => ChangeMember(ref _reference, value); }
 }
 
-public interface IReferer: IElement
+public interface IReferer : IElement
 {
     string Reference { get; set; }
     void ReplaceWith(Clause clause);
@@ -213,9 +213,4 @@ public class FileLink : Clause, IReferer
     public string? Height { get; set; }
     public FileAlign Align { get; set; }
     public FileTheme Theme { get; set; }
-
-    public override void Normalize()
-    {
-        _reference = "파일:" + _reference[3..].Trim();
-    }
 }

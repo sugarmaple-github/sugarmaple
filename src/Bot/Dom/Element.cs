@@ -64,12 +64,6 @@ public abstract class Element : IElement, IWeakElement, IChangeTracking
             e.NotifyChange();
     }
 
-    public virtual void Normalize()
-    {
-        if (this is IParentElement p)
-            p.NormalizeChildren();
-    }
-
     public void AcceptChanges()
     {
         IsChanged = false;

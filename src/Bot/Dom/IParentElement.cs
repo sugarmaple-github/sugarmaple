@@ -15,12 +15,6 @@ public interface IParentElement<TChild> : IElement, IParentElement where TChild 
 
 public static class ParentElementExtensions
 {
-    public static void NormalizeChildren(this IParentElement _this)
-    {
-        foreach (var o in _this.Children)
-            o.Normalize();
-    }
-
     public static IElement? FirstChild(this IParentElement _this) => _this.Children.Count > 0 ? _this.Children[0] : null;
 
     public static IElement? FirstChild<TChild>(this IParentElement<TChild> _this) where TChild : IElement

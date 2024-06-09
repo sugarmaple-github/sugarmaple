@@ -10,7 +10,7 @@ public static class OrderCreator
 {
     public static OrderDelegate ReplaceBacklink(string source, string destination,
         string? destinationDisplay = null,
-        string from = "", string? sourceAnchor = null, string? destAnchor = null, bool context = false) => (b, s) =>
+        string from = "", string? sourceAnchor = null, string? destAnchor = null, string? log = null, bool context = false) => (b, s) =>
         {
             IEnumerator? searchRoutine = null;
             //IEnumerator<IWebElement>? enumerator_old = null;
@@ -31,7 +31,7 @@ public static class OrderCreator
                 from: s.TryGetProgress("from", from),
                 sourceAnchor: sourceAnchor,
                 destAnchor: destAnchor,
-                log: null, predicate: context ? OnCheck : () => true);
+                log: log, predicate: context ? OnCheck : () => true);
             bool OnCheck()
             {
                 if (searchRoutine == null)

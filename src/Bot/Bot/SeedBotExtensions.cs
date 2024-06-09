@@ -59,10 +59,10 @@ public static class SeedBotExtensions
         string? sourceAnchor = null, string? destAnchor = null,
         string? log = null, Func<bool>? predicate = null)
     {
-        log ??= _bot.LogMakerDict[nameof(ReplaceBacklink)](source, destination);
+        var fullLog = _bot.LogMakerDict[nameof(ReplaceBacklink)](log);
         if (IsFrame(source) && !IsFrame(destination))
         {
-            _bot.ReplaceBacklinkFrameToNotFrame(source, destination, destinationDisplay, from, sourceAnchor, destAnchor, log);
+            _bot.ReplaceBacklinkFrameToNotFrame(source, destination, destinationDisplay, from, sourceAnchor, destAnchor, fullLog);
             return;
         }
 
@@ -71,7 +71,7 @@ public static class SeedBotExtensions
         else if (destinationDisplay == "")
             destinationDisplay = destination;
 
-        var targets = _bot.BacklinkReferers(source, ~NamespaceMask.Wiki, from, log);
+        var targets = _bot.BacklinkReferers(source, ~NamespaceMask.Wiki, from, fullLog);
         if (sourceAnchor != null)
             targets = targets.Where(o => o is InternalLink i && i.Anchor == sourceAnchor);
 

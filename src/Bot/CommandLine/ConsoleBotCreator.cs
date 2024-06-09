@@ -101,7 +101,7 @@ internal class ConsoleBotCreator
         bot.OnPostSuccessfully.Event += state.OnEveryPost;
         bot.OnLackOfPermission += state.OnLackOfPermission;
         bot.OnBacklink += state.OnBacklink;
-        bot.LogMakerDict["ReplaceBacklink"] = args => $"[자동 편집] 역링크 정리 (\"{args[0]}\" -> \"{args[1]}\")";
+        bot.LogMakerDict["ReplaceBacklink"] = args => $"[자동 편집] 역링크 정리 (\"{args[0]}\")";
         return bot;
     }
 }

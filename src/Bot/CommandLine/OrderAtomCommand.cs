@@ -72,10 +72,12 @@ internal class BacklinkCommand : Command
         var contextOption = new Option<bool>("--context", () => false);
         cmd.AddOption(contextOption);
 
-        cmd.SetHandler((source, destinaion, destinaionDisplay, from, sourceAnchor, destAnchor, context) =>
+        var logOption = new Option<string>("--log", () => "");
+
+        cmd.SetHandler((source, destinaion, destinaionDisplay, from, sourceAnchor, destAnchor, log, context) =>
         {
-            orders.Add(OrderCreator.ReplaceBacklink(source, destinaion, destinaionDisplay, from, sourceAnchor, destAnchor, context));
-        }, sourceArg, destinationOption, destinationDisplayOption, fromOption, sourceAnchorOption, destAnchorOption, contextOption);
+            orders.Add(OrderCreator.ReplaceBacklink(source, destinaion, destinaionDisplay, from, sourceAnchor, destAnchor, log, context));
+        }, sourceArg, destinationOption, destinationDisplayOption, fromOption, sourceAnchorOption, destAnchorOption, logOption, contextOption);
         return cmd;
     }
 }

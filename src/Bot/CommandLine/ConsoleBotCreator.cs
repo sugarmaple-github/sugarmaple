@@ -9,13 +9,13 @@ internal class ConsoleBotState
     private bool _checkEditMod = true;
     private int _lastEditCountBeforeCheck;
     private int _editTerm;
+    private string? _beforeEdit;
+
+    public event Action<string, string>? DetectingChange;
 
     public void BeforeEveryEdit(string title, string body)
     {
-        if (_checkEditMod)
-        {
-            FileUtil.Write("before_edit.txt", body);
-        }
+        _beforeEdit = body;
     }
 
     public string BeforeEveryPost(string title, Document body)
@@ -24,7 +24,7 @@ internal class ConsoleBotState
         var ret = formatter.ToMarkup(body);
         if (_checkEditMod)
         {
-            FileUtil.Write("after_edit.txt", ret);
+            DetectingChange?.Invoke(_beforeEdit, ret);
             Console.WriteLine($"{title} 결과:");
             string message;
             if (body.IsChanged)
@@ -94,6 +94,12 @@ internal class ConsoleBotCreator
     public static SeedBot Create(string wikiUri, string wikiApiUri, string apiToken, string userName, string[] wikiNamespaces)
     {
         var state = new ConsoleBotState();
+        state.DetectingChange += (older, newer) =>
+        {
+            FileUtil.Write("before_edit.txt", older);
+            FileUtil.Write("after_edit.txt", newer);
+        };
+
         var bot = new SeedBot(wikiUri, wikiApiUri, apiToken, userName, wikiNamespaces);
         bot.OnGetEditSuccessfully += state.BeforeEveryEdit;
         bot.DocumentPosting += state.BeforeEveryPost;

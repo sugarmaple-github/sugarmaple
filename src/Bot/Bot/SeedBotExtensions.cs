@@ -59,7 +59,7 @@ public static class SeedBotExtensions
         string? sourceAnchor = null, string? destAnchor = null,
         string? log = null, Func<bool>? predicate = null)
     {
-        var fullLog = _bot.LogMakerDict[nameof(ReplaceBacklink)](log);
+        var fullLog = _bot.LogMakerDict[nameof(ReplaceBacklink)](source, destination, log);
         if (IsFrame(source) && !IsFrame(destination))
         {
             _bot.ReplaceBacklinkFrameToNotFrame(source, destination, destinationDisplay, from, sourceAnchor, destAnchor, fullLog);

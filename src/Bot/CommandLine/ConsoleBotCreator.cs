@@ -87,10 +87,6 @@ internal class ConsoleBotState
 
 internal class ConsoleBotCreator
 {
-    private SeedCrawler? _crawler;
-
-    private SeedCrawler Crawler => _crawler ??= new("https://namu.wiki", false);
-
     public static SeedBot Create(string wikiUri, string wikiApiUri, string apiToken, string userName, string[] wikiNamespaces)
     {
         var state = new ConsoleBotState();
@@ -107,7 +103,7 @@ internal class ConsoleBotCreator
         bot.OnPostSuccessfully.Event += state.OnEveryPost;
         bot.OnLackOfPermission += state.OnLackOfPermission;
         bot.OnBacklink += state.OnBacklink;
-        bot.LogMakerDict["ReplaceBacklink"] = args => $"[자동 편집] 역링크 정리 (\"{args[0]}\")";
+        bot.LogMakerDict["ReplaceBacklink"] = args => $"[자동] 역링크 정리 \"{args[0]}\" -> \"{args[1]}\" (사유: {args[2]})";
         return bot;
     }
 }

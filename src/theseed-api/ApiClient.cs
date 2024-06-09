@@ -243,7 +243,13 @@ public static class SeedApiClientExtensions
         if (namespaces.Count == 0)
             return ret;
         if (!denialNamespaces.Contains(namespaces[0].Namespace))
+        {
             ret = ret.Concat(first.Backlinks);
+            if (first.From != null)
+            {
+                ret = ret.Concat(self.GetBacklinkOne(document, namespaces[0].Namespace, first.From));
+            }
+        }
         ret = ret.Concat(
                 namespaces.Skip(1).ExceptBy(denialNamespaces, o => o.Namespace).SelectMany(o => self.GetBacklinkOne(document, o.Namespace, ""))
             );

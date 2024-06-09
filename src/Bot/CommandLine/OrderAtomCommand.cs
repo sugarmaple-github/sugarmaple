@@ -73,6 +73,7 @@ internal class BacklinkCommand : Command
         cmd.AddOption(contextOption);
 
         var logOption = new Option<string>("--log", () => "");
+        cmd.AddOption(logOption);
 
         cmd.SetHandler((source, destinaion, destinaionDisplay, from, sourceAnchor, destAnchor, log, context) =>
         {

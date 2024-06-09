@@ -52,7 +52,7 @@ public abstract class Element : IElement, IWeakElement, IChangeTracking
 
     protected void ChangeMember<T>(ref T member, T value)
     {
-        if (EqualityComparer<T>.Default.Equals(member, value))
+        if (!EqualityComparer<T>.Default.Equals(member, value))
         {
             NotifyChange();
             member = value;

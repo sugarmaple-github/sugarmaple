@@ -66,14 +66,8 @@ public class CategoryLink : Clause, IReferer
     private string? _display;
     private bool _blur;
 
-    public string Reference
-    {
-        get => _reference; set => ChangeMember(ref _reference, value);
-    }
-    public string? Display
-    {
-        get => _display; set => ChangeMember(ref _display, value);
-    }
+    public string Reference { get => _reference; set => ChangeMember(ref _reference, value); }
+    public string? Display { get => _display; set => ChangeMember(ref _display, value); }
     public bool Blur { get => _blur; set => _blur = value; }
 }
 

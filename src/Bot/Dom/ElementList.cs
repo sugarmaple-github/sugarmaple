@@ -149,7 +149,6 @@ public class ElementList<T> : IList<T>, IReadOnlyList<T> where T : IElement
         Parent.NotifyModifying();
     }
 
-
     public bool Remove(T item)
     {
         var ret = ((ICollection<T>)_items).Remove(item);
@@ -169,6 +168,4 @@ public class ElementList<T> : IList<T>, IReadOnlyList<T> where T : IElement
     {
         return ((IEnumerable)_items).GetEnumerator();
     }
-
-    public string OuterMarkup => string.Concat(_items.Select(o => o.OuterMarkup));
 }

@@ -9,6 +9,8 @@ internal class ConsoleBotState
     private bool _checkEditMod = true;
     private int _lastEditCountBeforeCheck;
     private int _editTerm;
+    private bool _wasChanged;
+    private bool _wasFormatted;
     private string? _beforeEdit;
 
     public event Action<string, string>? DetectingChange;
@@ -18,16 +20,26 @@ internal class ConsoleBotState
         _beforeEdit = body;
     }
 
-    public string BeforeEveryPost(string title, Document body)
+    public void DocumentPosting(string title, Document body)
     {
-        var formatter = NamuFormatter.Default;
-        var ret = formatter.ToMarkup(body);
+        _wasChanged = body.IsChanged;
+        _wasFormatted = true;
+    }
+
+
+    public string ApiPosting(string title, string body)
+    {
+        var ret = body;
         if (_checkEditMod)
         {
-            DetectingChange?.Invoke(_beforeEdit, ret);
+            DetectingChange?.Invoke(_beforeEdit, body);
             Console.WriteLine($"{title} 결과:");
             string message;
-            if (body.IsChanged)
+            if (!_wasFormatted)
+                _wasChanged = _beforeEdit != body;
+
+
+            if (_wasChanged)
             {
                 message = "편집을 승인하려면 엔터 키를 눌러주세요. 편집 모드를 중단하려면 s를 누르세요.";
             }
@@ -56,6 +68,8 @@ internal class ConsoleBotState
             if (line == "check")
                 _checkEditMod = true;
         }
+        _wasChanged = false;
+        _wasFormatted = false;
         return ret;
     }
 
@@ -79,7 +93,7 @@ internal class ConsoleBotState
 
     public void OnEveryPost(EditPostResult arg)
     {
-        Console.WriteLine($"문서 {arg.Document}  r {arg.Rev} 편집 완료.");
+        Console.WriteLine($"{arg.Document}  r{arg.Rev} 편집 완료.");
         //if (_checkEditMod)
         //    _crawler.ShowDiff(doc, rev);
     }
@@ -98,7 +112,8 @@ internal class ConsoleBotCreator
 
         var bot = new SeedBot(wikiUri, wikiApiUri, apiToken, userName, wikiNamespaces);
         bot.OnGetEditSuccessfully += state.BeforeEveryEdit;
-        bot.DocumentPosting += state.BeforeEveryPost;
+        bot.DocumentPosting += state.DocumentPosting;
+        bot.ApiPosting += state.ApiPosting;
         bot.OnPostSameDoc += state.OnEditWhenNoDiff;
         bot.OnPostSuccessfully.Event += state.OnEveryPost;
         bot.OnLackOfPermission += state.OnLackOfPermission;

@@ -18,7 +18,7 @@ public class SeedApiClient : ISeedApiClient
     public event Action<string, string>? OnGetEditSuccessfully;
     public event Action<BacklinkResult>? OnBacklink;
     public EventPublisher<EditPostResult> OnPostSuccessfully { get; } = new();
-    public event Func<string, string, string>? BeforeEveryPost;
+    public event Func<string, string, string>? ApiPosting;
     public string WikiUri { get; }
 
     public event Action<string>? OnError
@@ -114,7 +114,7 @@ public class SeedApiClient : ISeedApiClient
 
     private async Task<EditReport?> PostEditAsync_In(string document, string text, string log, string token)
     {
-        var intercepted = BeforeEveryPost?.Invoke(document, text) ?? text;
+        var intercepted = ApiPosting?.Invoke(document, text) ?? text;
         var output = await _client.PostEditAsync(document, intercepted, log, token);
         if (output.TryGetValue(out var item))
         {

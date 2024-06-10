@@ -35,7 +35,7 @@ public class SeedBot : SeedApiClient
     public SeedViewer? _viewer;
     public SeedViewer Viewer { get => _viewer ??= new(WikiUri); }
     public string[] WikiNamespaces { get; internal set; }
-    public Func<string, Document, string> DocumentPosting { get; internal set; }
+    public Action<string, Document> DocumentPosting { get; internal set; }
 
     public SeedBot(string wikiUri, string wikiApiUri, string apiToken, string userName, string[] wikiNamespaces) : base(wikiApiUri, apiToken)
     {
@@ -98,7 +98,8 @@ public class SeedBot : SeedApiClient
 
     public Task<EditReport?> PostEditAsync(EditView view, Document doc, string log)
     {
-        var text = DocumentPosting?.Invoke(view.Document, doc) ?? NamuFormatter.Default.ToMarkup(doc);
+        DocumentPosting?.Invoke(view.Document, doc);
+        var text = NamuFormatter.Default.ToMarkup(doc);
         return view.PostEditAsync(text, log);
     }
 }

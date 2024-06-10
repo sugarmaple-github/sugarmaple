@@ -135,7 +135,7 @@ public static class SeedBotExtensions
     }
     private static bool IsFrame(string docTitle) => docTitle.StartsWith("틀:");
 
-    public static void ReplaceSearch(this SeedBot self, string source, string destination, int page = 1)
+    public static void ReplaceSearch(this SeedBot self, string source, string destination, int page = 1, string? log = null)
     {
         var changePage = false;
         while (true)
@@ -153,7 +153,7 @@ public static class SeedBotExtensions
                 }
                 Debug.Assert(view.Exist);
                 var newContent = view.Text.Replace(source, destination);
-                view.PostEditAsync(newContent, $"[자동 편집] '{source}' -> '{destination}' 변경");
+                view.PostEditAsync(newContent, $"[자동] '{source}' -> '{destination}' 변경 ({log})");
             }
         }
     }

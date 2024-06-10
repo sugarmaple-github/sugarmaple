@@ -55,9 +55,9 @@ public static class OrderCreator
         b.MakeEditOnly(source, from: s.TryGetProgress("from", from));
     };
 
-    internal static OrderDelegate SearchReplace(string source, string destination) => (b, s) =>
+    internal static OrderDelegate SearchReplace(string source, string destination, string log) => (b, s) =>
     {
         s.AddEvent(b.Crawler.OnSearch, o => s.SaveProgress("page", o));
-        b.ReplaceSearch(source, destination, s.TryGetProgressInt("page", 0));
+        b.ReplaceSearch(source, destination, s.TryGetProgressInt("page", 0), log);
     };
 }

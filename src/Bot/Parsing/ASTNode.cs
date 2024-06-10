@@ -9,6 +9,8 @@ internal record struct ASTNode : IEnumerable<ASTNode>
     public int Length;
     public List<ASTNode> Children = new();
 
+    public bool IsValid => Length > 0;
+
     public ASTNode(Element? Element)
     {
     }

@@ -186,9 +186,57 @@ internal class StringTape
     }
 }
 
+internal class BriefStringTape
+{
+    public readonly string Raw;
+    public int Start;
+    public int Index { get; set; }
+    public readonly int EndIndex;
+
+    public BriefStringTape(string raw, int index, int endIndex)
+    {
+        Raw = raw;
+        Index = index;
+        EndIndex = endIndex;
+    }
+
+    public char Current => Raw[Index];
+
+    public bool TryProgress(int size = 1)
+    {
+        if (Index >= EndIndex)
+            Index += size;
+        return true;
+    }
+}
+
 
 internal static class StringTapeExtensions
 {
+    public static bool Search(this BriefStringTape self, string str) => self.Search(self.Index, str);
+    public static bool Search(this BriefStringTape self, char c) => self.Search(self.Index, c);
+    public static bool Search(this BriefStringTape self, int index, char c) => 0 <= index && index < self.Raw.Length && self.Raw[index] == c;
+    public static bool Search(this BriefStringTape self, int index, string str) => self.Raw.AsSpan(index).StartsWith(str);
+
+    /// <summary>
+    /// 해당 문자를 찾을 때까지 이동합니다.
+    /// </summary>
+    /// <param name="self"></param>
+    /// <param name="c"></param>
+    /// <returns>찾지 못하면 false를 반환합니다.</returns>
+    public static bool ConsumeTo(this BriefStringTape self, char c)
+    {
+        var index = self.Index;
+        while (index < self.EndIndex)
+            if (self.Raw[index++] == c)
+            {
+                self.Index = index;
+                return true;
+            }
+        return false;
+    }
+
+
     public static bool Regex(this StringTape tape, [StringSyntax(StringSyntaxAttribute.Regex)] string regex)
     {
         var re = new Regex(regex);

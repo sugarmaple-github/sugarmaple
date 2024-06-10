@@ -313,4 +313,5 @@ public enum ASTNodeType
     Bold,
     Italic,
     MarkupBracket,
+    Quote,
 }

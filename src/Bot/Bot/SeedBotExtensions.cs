@@ -144,46 +144,47 @@ public static class SeedBotExtensions
     /// <param name="q"></param>
     /// <param name="namespace"></param>
     /// <returns></returns>
-    public static IEnumerable<string> SearchFull(this SeedCrawler self, string target, string q, string @namespace, int curPage = 500)
+    public static IEnumerable<string> SearchFull(this SeedCrawler self, string target, string q, string @namespace)
     {
         const int maxPage = 500;
         const int resultByPage = 20;
-        var curRejected = new HashSet<string>();
-        var nextRejected = new HashSet<string>();
-        IEnumerable<string>? maxTitles = null;
-        var (count, _) = Search(curPage);
-        curPage = (count + resultByPage - 1) / resultByPage;
-
-        do
+        var curPage = 2;
+        var emerged = new HashSet<string>();
+        while (true)
         {
-            for (int i = curPage; i >= 1; i--)
+            var (_, titles) = self.Search(target, q, @namespace, curPage);
+            if (!titles.Any())
+                yield break;
+            var duplicateHappend = false;
+            foreach (var o in titles)
             {
-                foreach (var item in Search(i).Titles)
+                if (emerged.Add(o))
                 {
-                    nextRejected.Add(item);
-                    if (curRejected.Contains(item))
-                        yield break;
-                    yield return item;
+                    yield return o;
                 }
+                else duplicateHappend = true;
             }
-            (curRejected, nextRejected) = (nextRejected, curRejected);
-            nextRejected.Clear();
-            curPage = maxPage;
-            maxTitles = null;
-        } while (Search(maxPage).Titles.Count() > 0);
-
-        (int Count, IEnumerable<string> Titles) Search(int i)
-        {
-            (int Count, IEnumerable<string> Titles) ret = self.Search(target, q, @namespace, i);
-            if (maxTitles == null && i == maxPage)
-                maxTitles = ret.Titles;
-            return ret;
+            if (duplicateHappend)
+            {
+                var nonDuplicateHappend = false;
+                (_, titles) = self.Search(target, q, @namespace, curPage - 1);
+                foreach (var oin in titles)
+                {
+                    if (emerged.Add(oin))
+                    {
+                        yield return oin;
+                        nonDuplicateHappend = true;
+                    }
+                }
+                if (!nonDuplicateHappend) //중복 값으로 폐기 페이지가 가득차면
+                    curPage++;
+            }
         }
     }
 
     public static void ReplaceSearch(this SeedBot self, string source, string destination, int page = 1, string? log = null)
     {
-        foreach (var o in self.Crawler.SearchFull("raw", source, "문서", page).Select(o => self.GetEditAsync(o).Result))
+        foreach (var o in self.Crawler.SearchFull("raw", source, "문서").Select(o => self.GetEditAsync(o).Result))
         {
             Debug.Assert(o.Exist);
             var newContent = o.Text.Replace(source, destination);

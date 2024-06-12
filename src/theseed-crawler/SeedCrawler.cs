@@ -24,7 +24,7 @@ public class SeedCrawler
 
     static readonly ChromeDriverService _service;
 
-    public EventPublisher<int> OnSearch { get; } = new();
+    public Action<int>? OnSearch { get; }
 
     static SeedCrawler()
     {
@@ -211,11 +211,28 @@ public class SeedCrawler
         return json;
     }
 
-    public IEnumerable<string> Search(string target, string q, string @namespace, int page = 1)
+    public (int Count, IEnumerable<string> Titles) Search(string target, string q, string @namespace, int page = 1)
+    {
+        var count = 0;
+        OnSearch?.Invoke(page);
+        var article = GetArticleNode($"Search?target={target}&q={Uri.EscapeDataString(q)}&namespace={@namespace}&page={page}");
+        var section = article.SelectSingleNode(".//div[4]/div/section");
+        var countText = section.ParentNode.SelectSingleNode("./div[2]").InnerText;
+        var first = countText.IndexOf("전체 ") + 3;
+        var last = countText.IndexOf(" 건");
+        count = int.Parse(countText.AsSpan(first, last - first));
+
+        var docs = section.SelectNodes("./div/h4/a/text()");
+        if (docs != null)
+            return (count, docs.Select(o => o.InnerHtml.Trim(' ', '\n', '\r').Replace("&amp;", "&").Replace("&lt;", "<").Replace("&gt;", ">")));
+        return (count, Enumerable.Empty<string>());
+    }
+
+    public IEnumerable<string> Search_old(string target, string q, string @namespace, int page = 1)
     {
         for (int i = 0; i < 2; i++)
         {
-            OnSearch.Invoke(page);
+            OnSearch?.Invoke(page);
             var article = GetArticleNode($"Search?target={target}&q={Uri.EscapeDataString(q)}&namespace={@namespace}&page={page}");
             var docs = article.SelectNodes(".//div[4]/div/section/div/h4/a/text()");
             if (docs != null)

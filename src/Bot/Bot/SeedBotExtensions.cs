@@ -1,6 +1,7 @@
 ﻿namespace Sugarmaple.Bot;
 
 using Sugarmaple.TheSeed.Api;
+using Sugarmaple.TheSeed.Crawler;
 using Sugarmaple.TheSeed.Namumark;
 using System;
 using System.Diagnostics;
@@ -135,26 +136,58 @@ public static class SeedBotExtensions
     }
     private static bool IsFrame(string docTitle) => docTitle.StartsWith("틀:");
 
+    /// <summary>
+    /// 검색한 문서명을 중복 없이 반환합니다.
+    /// </summary>
+    /// <param name="self"></param>
+    /// <param name="target"></param>
+    /// <param name="q"></param>
+    /// <param name="namespace"></param>
+    /// <returns></returns>
+    public static IEnumerable<string> SearchFull(this SeedCrawler self, string target, string q, string @namespace, int curPage = 500)
+    {
+        const int maxPage = 500;
+        const int resultByPage = 20;
+        var curRejected = new HashSet<string>();
+        var nextRejected = new HashSet<string>();
+        IEnumerable<string>? maxTitles = null;
+        var (count, _) = Search(curPage);
+        curPage = (count + resultByPage - 1) / resultByPage;
+
+        do
+        {
+            for (int i = curPage; i >= 1; i--)
+            {
+                foreach (var item in Search(i).Titles)
+                {
+                    nextRejected.Add(item);
+                    if (curRejected.Contains(item))
+                        yield break;
+                    yield return item;
+                }
+            }
+            (curRejected, nextRejected) = (nextRejected, curRejected);
+            nextRejected.Clear();
+            curPage = maxPage;
+            maxTitles = null;
+        } while (Search(maxPage).Titles.Count() > 0);
+
+        (int Count, IEnumerable<string> Titles) Search(int i)
+        {
+            (int Count, IEnumerable<string> Titles) ret = self.Search(target, q, @namespace, i);
+            if (maxTitles == null && i == maxPage)
+                maxTitles = ret.Titles;
+            return ret;
+        }
+    }
+
     public static void ReplaceSearch(this SeedBot self, string source, string destination, int page = 1, string? log = null)
     {
-        var changePage = false;
-        while (true)
+        foreach (var o in self.Crawler.SearchFull("raw", source, "문서", page).Select(o => self.GetEditAsync(o).Result))
         {
-            var list = self.Crawler.Search("raw", source, "문서", page);
-            if (!list.Any())
-                break;
-            foreach (var o in list)
-            {
-                var view = self.GetEditAsync(o).Result;
-                if (view == null)
-                {
-                    changePage = true;
-                    continue;
-                }
-                Debug.Assert(view.Exist);
-                var newContent = view.Text.Replace(source, destination);
-                view.PostEditAsync(newContent, $"[자동] '{source}' -> '{destination}' 변경 ({log})");
-            }
+            Debug.Assert(o.Exist);
+            var newContent = o.Text.Replace(source, destination);
+            o.PostEditAsync(newContent, $"[자동] '{source}' -> '{destination}' 변경 ({log})");
         }
     }
 
@@ -167,7 +200,7 @@ public static class SeedBotExtensions
         var changePage = false;
         while (true)
         {
-            var list = self.Crawler.Search("raw", ColorFrom, "문서", page);
+            var list = self.Crawler.Search_old("raw", ColorFrom, "문서", page);
             if (!list.Any())
                 break;
             foreach (var o in list)

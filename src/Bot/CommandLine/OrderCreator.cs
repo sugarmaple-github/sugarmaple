@@ -57,7 +57,10 @@ public static class OrderCreator
 
     internal static OrderDelegate SearchReplace(string source, string destination, string log) => (b, s) =>
     {
-        s.AddEvent(b.Crawler.OnSearch, o => s.SaveProgress("page", o));
+        s.OnSearch += o =>
+        {
+            s.SaveProgress("page", o);
+        };
         b.ReplaceSearch(source, destination, s.TryGetProgressInt("page", 0), log);
     };
 }

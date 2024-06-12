@@ -89,6 +89,8 @@ public class OrderStarter
 
     private Action _onLabelEnd;
 
+    public event Action<int>? OnSearch;
+
     public event Action<string, string> OnGetEditSuccessfully
     {
         add
@@ -130,6 +132,12 @@ public class OrderStarter
     public void Invoke(Order order, int start)
     {
         var insts = order.Instructions;
+        _bot.OnLackOfPermission +=
+            o =>
+            {
+                ((JArray)_json["result"]!["acl-denied"]!).Add(o.Document);
+                Save();
+            };
         for (int i = start; i < insts.Length; i++)
         {
             insts[i].Invoke(_bot, this);

@@ -135,7 +135,7 @@ public class OrderStarter
         _bot.OnLackOfPermission +=
             o =>
             {
-                ((JArray)_json["result"]!["acl-denied"]!).Add(o.Document);
+                ((JArray)_json["result"]!["denied"]!["acl"]!).Add(o.Document);
                 Save();
             };
         for (int i = start; i < insts.Length; i++)

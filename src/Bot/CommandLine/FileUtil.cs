@@ -1,6 +1,7 @@
 ﻿// See https://aka.ms/new-console-template for more information
 namespace Sugarmaple.Bot.CommandLine;
 using Microsoft.Extensions.Configuration;
+using Newtonsoft.Json;
 using Sugarmaple.TheSeed.Api;
 using Sugarmaple.TheSeed.Crawler;
 
@@ -80,6 +81,13 @@ internal static class FileUtil
         var fileLoc = Path.Combine(_path, name);
         var ret = File.ReadAllText(fileLoc);
         return ret;
+    }
+
+    public static T GetDeserializedJson<T>(string path, JsonSerializer serializer)
+    {
+        using var file = new StreamReader(path);
+        using var j = new JsonTextReader(file);
+        return serializer.Deserialize<T>(j)!;
     }
 
     public static string[] GetDocs()

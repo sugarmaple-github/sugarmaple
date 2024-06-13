@@ -1,11 +1,11 @@
 ﻿namespace Sugarmaple.Bot.CommandLine;
+
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Newtonsoft.Json.Serialization;
 using Sugarmaple.TheSeed.Api;
-using Sugarmaple.TheSeed.Crawler;
 using System;
 using System.CommandLine;
-using System.Runtime.CompilerServices;
 
 public class ConsoleMessage
 {
@@ -59,10 +59,13 @@ public class OrderCommand : Command
         ConsoleMessage.Default.ShowMessage("OrderStart", orderName);
 
         var path = Path.Combine("tasks", orderName);
-        var text = FileUtil.Read(path);
-        var json = JObject.Parse(text)!;
-        var starter = new OrderStarter(bot, path, json);
-        starter.Start();
+        var order = FileUtil.GetDeserializedJson<OrderSaved>(path, new());
+
+        var fileStream = FileUtil.Create(path);
+        var streamWriter = new StreamWriter(fileStream);
+
+        var starter = new OrderStarter();
+        starter.Start(ref order, bot, streamWriter);
     }
 }
 
@@ -81,7 +84,7 @@ internal class CommandCompiler
     }
 }
 
-public delegate void OrderDelegate(SeedBot bot, OrderStarter starter);
+public delegate void OrderDelegate(BotEventHandler bot, OrderContext starter);
 
 ref struct EventRegister<T>
 {

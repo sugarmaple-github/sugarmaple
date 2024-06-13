@@ -1,14 +1,31 @@
 ﻿namespace Sugarmaple.Bot.CommandLine;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Newtonsoft.Json.Serialization;
 using Sugarmaple.TheSeed.Api;
 using System;
+
+public record struct OrderContext(int Page, string From);
+public struct OrderProgress { public int Label; public OrderContext Context; }
+public record struct OrderDenied(HashSet<string> Acl);
+public record struct OrderResult(OrderDenied Denied);
+public struct OrderSaved
+{
+    public string Script;
+    public OrderProgress Progress;
+    public OrderResult Result;
+}
 
 public class OrderStarter
 {
     private readonly SeedBot _bot;
     private readonly string _path;
+    [Obsolete]
     private readonly JObject _json;
+
+    private readonly JsonSerializer _serializer;
+    private readonly JsonWriter _writer;
+    private OrderSaved _saved;
 
     private Action _onLabelEnd;
 
@@ -39,15 +56,17 @@ public class OrderStarter
         _bot = bot;
         _path = path;
         _json = element;
+
+        var fileStream = FileUtil.Create(_path);
+        var streamWriter = new StreamWriter(fileStream);
+        _writer = new JsonTextWriter(streamWriter) { Indentation = 4, IndentChar = ' ' };
+        _serializer = new JsonSerializer() { ContractResolver = new CamelCasePropertyNamesContractResolver() };
     }
 
     public void Start()
     {
-        var scriptPath = _json.Value<string>("script")!; //TODO: null control
-
-        var progress = _json["progress"];
-        var label = progress!.Value<int>("label");
-        var commands = FileUtil.Read(Path.Combine("orders", scriptPath)).Split('\n');
+        var label = _saved.Progress.Label;
+        var commands = FileUtil.Read(Path.Combine("orders", _saved.Script)).Split('\n');
         var order = CommandCompiler.Default.Build(commands);
         Invoke(order, label);
     }
@@ -58,7 +77,7 @@ public class OrderStarter
         _bot.OnLackOfPermission +=
             o =>
             {
-                ((JArray)_json["result"]!["denied"]!["acl"]!).Add(o.Document);
+                _saved.Result.Denied.Acl.Add(o.Document);
                 Save();
             };
         for (int i = start; i < insts.Length; i++)
@@ -103,17 +122,13 @@ public class OrderStarter
     /// <param name="label"></param>
     private void OnLabelEnd(int label)
     {
-        _json["progress"]!["label"] = label + 1;
-        _json["progress"]!["context"]!["from"] = "";
+        _saved.Progress = new() { Label = label + 1 };
         _onLabelEnd?.Invoke();
         Save();
     }
 
     private void Save()
     {
-        using var fileStream = FileUtil.Create(_path);
-        using var streamWriter = new StreamWriter(fileStream);
-        using var jsonWriter = new JsonTextWriter(streamWriter) { Indentation = 4, IndentChar = ' ' };
-        _json.WriteTo(jsonWriter);
+        _serializer.Serialize(_writer, _saved);
     }
 }

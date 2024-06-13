@@ -2,6 +2,7 @@
 namespace Sugarmaple.Bot.CommandLine;
 using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;
 using Sugarmaple.TheSeed.Api;
 using Sugarmaple.TheSeed.Crawler;
 
@@ -70,6 +71,12 @@ internal static class FileUtil
         var fileLoc = Path.Combine(_path, name);
         return File.Create(fileLoc);
     }
+    public static FileStream OpenRead(string name)
+    {
+        var fileLoc = Path.Combine(_path, name);
+        return File.OpenRead(fileLoc);
+    }
+
 
     public static FileStream OpenWrite(string name)
     {
@@ -83,9 +90,11 @@ internal static class FileUtil
         return ret;
     }
 
+    static JsonSerializer _serializer = new() { ContractResolver = new CamelCasePropertyNamesContractResolver() };
+
     public static T GetDeserializedJson<T>(string path, JsonSerializer serializer)
     {
-        using var file = new StreamReader(path);
+        using var file = new StreamReader(OpenRead(path));
         using var j = new JsonTextReader(file);
         return serializer.Deserialize<T>(j)!;
     }

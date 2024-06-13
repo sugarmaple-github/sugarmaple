@@ -5,35 +5,58 @@ using Sugarmaple.TheSeed.Api;
 using System;
 using System.IO;
 
-public record struct OrderContext(string From, int Page = 1);
-public struct OrderProgress { public int Label; public OrderContext Context; public List<OrderResult> Result; }
+public class OrderContext
+{
+    public string From { get; set; }
+    public int Page { get; set; } = 1;
+}
+public class OrderProgress
+{
+    public int Label { get; set; }
+    public OrderContext Context { get; set; }
+    public List<OrderResult> Result { get; set; } = new();
+}
 public record struct OrderDenied(HashSet<string> Acl);
 public record struct OrderResult(OrderDenied Denied);
+[JsonObject]
 public struct OrderSaved
 {
-    public string Script;
-    public OrderProgress Progress;
+    [JsonProperty]
+    public string Script { get; set; }
+    [JsonProperty]
+    public OrderProgress Progress { get; set; }
 }
 
 public class OrderStarter
 {
+    public void Start(string orderName, SeedBot bot)
+    {
+        var path = Path.Combine("tasks", orderName);
+        var order = FileUtil.GetDeserializedJson<OrderSaved>(path, new() { ContractResolver = new CamelCasePropertyNamesContractResolver() });
+
+        using var fileStream = FileUtil.Create(path);
+        using var streamWriter = new StreamWriter(fileStream);
+
+        Start(ref order, bot, streamWriter);
+    }
+
     public void Start(ref OrderSaved orderSaved, SeedBot bot, StreamWriter writer)
     {
         var label = orderSaved.Progress.Label;
         var commands = FileUtil.Read(Path.Combine("orders", orderSaved.Script)).Split('\n');
         var order = CommandCompiler.Default.Build(commands);
-        Invoke(order, label, new(bot), ref orderSaved.Progress, writer);
+        Invoke(order, label, new(bot), orderSaved, writer);
     }
 
 
     private static JsonSerializer _serializer = new JsonSerializer() { ContractResolver = new CamelCasePropertyNamesContractResolver() };
-    public void Invoke(Order order, int start, BotEventHandler bot, ref OrderProgress progress, StreamWriter streamWriter)
+    public void Invoke(Order order, int start, BotEventHandler bot, OrderSaved saved, StreamWriter streamWriter)
     {
         var insts = order.Instructions;
-        var result = progress.Result;
-        var context = progress.Context;
+        var result = saved.Progress.Result;
+        var context = saved.Progress.Context;
 
-        var writer = new JsonTextWriter(streamWriter) { Indentation = 4, IndentChar = ' ' };
+        using var writer = new JsonTextWriter(streamWriter);
 
         for (int i = start; i < insts.Length; i++)
         {
@@ -46,13 +69,13 @@ public class OrderStarter
                 (document, _) =>
                 {
                     context.From = document;
-                    _serializer.Serialize(writer, order);
+                    _serializer.Serialize(writer, saved);
                 };
 
             insts[i].Invoke(bot, context);
 
-            progress.Label = i + 1;
-            progress.Context = default;
+            saved.Progress.Label = i + 1;
+            saved.Progress.Context = default;
             bot.RemoveEvent();
         }
     }

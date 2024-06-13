@@ -58,14 +58,25 @@ public class OrderCommand : Command
     {
         ConsoleMessage.Default.ShowMessage("OrderStart", orderName);
 
-        var path = Path.Combine("tasks", orderName);
-        var order = FileUtil.GetDeserializedJson<OrderSaved>(path, new());
+        //var path = Path.Combine("tasks", orderName);
+        //OrderSaved defaultValue = new() { Script = "aa", Progress = new() };
+        //var s = JsonConvert.SerializeObject(defaultValue);
 
-        var fileStream = FileUtil.Create(path);
-        var streamWriter = new StreamWriter(fileStream);
+        //var file = FileUtil.OpenWrite(path);
+        //using var streamWriter = new StreamWriter(file);
+        //{
+        //    using var writer = new JsonTextWriter(streamWriter) { Indentation = 4, IndentChar = ' ' };
+        //    new JsonSerializer() { ContractResolver = new CamelCasePropertyNamesContractResolver() }.Serialize(writer, defaultValue);
+        //}
+        //file.Dispose();
+
+        //var order = FileUtil.GetDeserializedJson<OrderSaved>(path, new());
+
+        //var fileStream = FileUtil.Create(path);
+        // var streamWriter = new StreamWriter(fileStream);
 
         var starter = new OrderStarter();
-        starter.Start(ref order, bot, streamWriter);
+        starter.Start(orderName, bot);
     }
 }
 

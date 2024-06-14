@@ -66,10 +66,10 @@ internal static class FileUtil
         File.WriteAllText(fileLoc, content);
     }
 
-    public static FileStream Create(string name)
+    public static FileStream Create(string name, FileMode mode = default, FileAccess access = default)
     {
         var fileLoc = Path.Combine(_path, name);
-        return File.Create(fileLoc);
+        return new FileStream(fileLoc, mode, access);
     }
     public static FileStream OpenRead(string name)
     {

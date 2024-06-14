@@ -14,7 +14,7 @@ public class OrderProgress
 {
     public int Label { get; set; }
     public OrderContext Context { get; set; }
-    public List<OrderResult> Result { get; set; } = new();
+    public OrderResult Result { get; set; }
 }
 public record struct OrderDenied(HashSet<string> Acl);
 public record struct OrderResult(OrderDenied Denied);
@@ -31,53 +31,67 @@ public class OrderStarter
 {
     public void Start(string orderName, SeedBot bot)
     {
-        var path = Path.Combine("tasks", orderName);
-        var order = FileUtil.GetDeserializedJson<OrderSaved>(path, new() { ContractResolver = new CamelCasePropertyNamesContractResolver() });
+        var progresssPath = Path.Combine("tasks", orderName);
+        var order = FileUtil.GetDeserializedJson<OrderSaved>(progresssPath, _serializer);
 
-        using var fileStream = FileUtil.Create(path);
-        using var streamWriter = new StreamWriter(fileStream);
+        var reportPath = Path.Combine("reports", orderName);
 
-        Start(ref order, bot, streamWriter);
+        using var progressFileStream = FileUtil.Create(progresssPath, FileMode.OpenOrCreate, FileAccess.ReadWrite);
+        using var resultFileStream = FileUtil.Create(reportPath, FileMode.Create, FileAccess.ReadWrite);
+
+        Start(ref order, bot, progressFileStream, resultFileStream);
     }
 
-    public void Start(ref OrderSaved orderSaved, SeedBot bot, StreamWriter writer)
+    public void Start(ref OrderSaved orderSaved, SeedBot bot, Stream progress, Stream result)
     {
         var label = orderSaved.Progress.Label;
         var commands = FileUtil.Read(Path.Combine("orders", orderSaved.Script)).Split('\n');
         var order = CommandCompiler.Default.Build(commands);
-        Invoke(order, label, new(bot), orderSaved, writer);
+        Invoke(order, label, new(bot), orderSaved, progress, result);
     }
 
 
     private static JsonSerializer _serializer = new JsonSerializer() { ContractResolver = new CamelCasePropertyNamesContractResolver() };
-    public void Invoke(Order order, int start, BotEventHandler bot, OrderSaved saved, StreamWriter streamWriter)
+    public void Invoke(Order order, int start, BotEventHandler bot, OrderSaved saved, Stream progressStream, Stream reportStream)
     {
         var insts = order.Instructions;
-        var result = saved.Progress.Result;
-        var context = saved.Progress.Context;
+        var progress = saved.Progress;
+        var result = progress.Result;
+        var context = progress.Context;
 
-        using var writer = new JsonTextWriter(streamWriter);
-
+        var report = new List<OrderResult>();
         for (int i = start; i < insts.Length; i++)
         {
             bot.OnLackOfPermission +=
             o =>
             {
-                result[i].Denied.Acl.Add(o.Document);
+                result.Denied.Acl.Add(o.Document);
             };
             bot.OnGetEditSuccessfully +=
                 (document, _) =>
                 {
                     context.From = document;
-                    _serializer.Serialize(writer, saved);
+                    WriteJson(progressStream, saved);
                 };
 
             insts[i].Invoke(bot, context);
 
-            saved.Progress.Label = i + 1;
-            saved.Progress.Context = default;
+            progress.Label = i + 1;
+            progress.Context = new();
+            report.Add(progress.Result);
+            progress.Result = new();
+            WriteJson(reportStream, report);
             bot.RemoveEvent();
         }
+    }
+
+    private static void WriteJson<T>(Stream stream, T value)
+    {
+        stream.Position = 0;
+        stream.SetLength(0);
+        var streamWriter = new StreamWriter(stream);
+        var jsonWriter = new JsonTextWriter(streamWriter);
+        _serializer.Serialize(jsonWriter, value);
     }
 }
 

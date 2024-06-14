@@ -30,6 +30,10 @@
     <MySourceFiles Include="config\**\*.*" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="data\reports\" />
+  </ItemGroup>
+
     <Target Name="BeforeCompile">
         <Copy SourceFiles="@(MySourceFiles)" DestinationFolder="$(OutputPath)/config/%(RecursiveDir)" />
     </Target>

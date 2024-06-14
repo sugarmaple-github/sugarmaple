@@ -186,6 +186,8 @@ public static class SeedBotExtensions
     {
         foreach (var o in self.Crawler.SearchFull("raw", source, "문서").Select(o => self.GetEditAsync(o).Result))
         {
+            if (o == null)
+                continue;
             Debug.Assert(o.Exist);
             var newContent = o.Text.Replace(source, destination);
             o.PostEditAsync(newContent, $"[자동] '{source}' -> '{destination}' 변경 ({log})");

@@ -13,6 +13,7 @@ using System;
 using System.Collections;
 using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Reflection.Metadata;
 using System.Xml.Linq;
 using DevToolsSessionDomains = OpenQA.Selenium.DevTools.V125.DevToolsSessionDomains;
@@ -130,9 +131,14 @@ public class SeedCrawler
 
     public DiscussPage GetDiscussPage(string doc)
     {
-        var article = GetArticleNode($"discuss/{doc}");
-        var ul = article.SelectSingleNode(".//h3[text() = '토론']/following-sibling::ul") ?? throw new Exception();
-        var list = ul.SelectNodes(".//li");
+        GoToUrl($"discuss/{doc}");
+        var wait = new WebDriverWait(_driver, TimeSpan.FromSeconds(30));
+        var ul = wait.Until(ExpectedConditions.ElementExists(
+            By.XPath("//article//h3[text() = '토론']/following-sibling::ul")));
+
+        //var article = GetArticleNode($"discuss/{doc}");
+        //var ul = article.SelectSingleNode(".//h3[text() = '토론']/following-sibling::ul") ?? throw new Exception();
+        var list = ul.FindElements(By.XPath(".//li"));
         DiscussionPreview[] array;
         if (list != null)
         {
@@ -201,7 +207,7 @@ public class SeedCrawler
 
     public JObject GetInitialState(string path)
     {
-        _driver.Navigate().GoToUrl(Combine(BaseAddress, path));
+        GoToUrl(path);
         var wait = new WebDriverWait(_driver, TimeSpan.FromSeconds(10));
         var tag = wait.Until(ExpectedConditions.ElementExists(
             By.XPath("/html/body/script")));
@@ -211,20 +217,35 @@ public class SeedCrawler
         return json;
     }
 
+    private IWebElement GoToUrlAndWaitUntil(string path, string xpath)
+    {
+        GoToUrl(path);
+        var wait = new WebDriverWait(_driver, TimeSpan.FromSeconds(10));
+        var tag = wait.Until(ExpectedConditions.ElementExists(
+            By.XPath(xpath)));
+        return tag;
+    }
+
+    private void GoToUrl(string path)
+    {
+        _driver.Navigate().GoToUrl(Combine(BaseAddress, path));
+    }
+
     public (int Count, IEnumerable<string> Titles) Search(string target, string q, string @namespace, int page = 1)
     {
         var count = 0;
         OnSearch?.Invoke(page);
-        var article = GetArticleNode($"Search?target={target}&q={Uri.EscapeDataString(q)}&namespace={@namespace}&page={page}");
-        var section = article.SelectSingleNode(".//div[4]/div/section");
-        var countText = section.ParentNode.SelectSingleNode("./div[2]").InnerText;
+        var section = GoToUrlAndWaitUntil($"Search?target={target}&q={Uri.EscapeDataString(q)}&namespace={@namespace}&page={page}",
+            "//article//div[4]/div/section");
+        var countText = section.FindElement(By.XPath("./preceding-sibling::div[1]")).Text;
         var first = countText.IndexOf("전체 ") + 3;
         var last = countText.IndexOf(" 건");
         count = int.Parse(countText.AsSpan(first, last - first));
 
-        var docs = section.SelectNodes("./div/h4/a/text()");
+        var docs = section.FindElements(By.XPath("./div/h4/a"));
+        Debug.Assert(docs.Count > 0);
         if (docs != null)
-            return (count, docs.Select(o => o.InnerHtml.Trim(' ', '\n', '\r').Replace("&amp;", "&").Replace("&lt;", "<").Replace("&gt;", ">")));
+            return (count, docs.Select(o => o.Text.Trim(' ', '\n', '\r').Replace("&amp;", "&").Replace("&lt;", "<").Replace("&gt;", ">")).ToArray());
         return (count, Enumerable.Empty<string>());
     }
 
@@ -278,6 +299,7 @@ public class SeedCrawler
         return doc.DocumentNode;
     }
 
+    [Obsolete("더 이상 유효하지 않음(article을 대기해도 더 기다려야 함.)")]
     private HtmlNode GetArticleNode(string path)
     {
         _driver.Navigate().GoToUrl(Combine(BaseAddress, path));

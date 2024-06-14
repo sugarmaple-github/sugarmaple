@@ -36,13 +36,13 @@ public class OrderStarter
 
         var reportPath = Path.Combine("reports", orderName);
 
-        using var progressFileStream = FileUtil.Create(progresssPath, FileMode.OpenOrCreate, FileAccess.ReadWrite);
-        using var resultFileStream = FileUtil.Create(reportPath, FileMode.Create, FileAccess.ReadWrite);
+        //using var progressFileStream = FileUtil.Create(progresssPath, FileMode.OpenOrCreate, FileAccess.ReadWrite);
+        //using var resultFileStream = FileUtil.Create(reportPath, FileMode.Create, FileAccess.ReadWrite);
 
-        Start(ref order, bot, progressFileStream, resultFileStream);
+        Start(ref order, bot, progresssPath, reportPath);
     }
 
-    public void Start(ref OrderSaved orderSaved, SeedBot bot, Stream progress, Stream result)
+    public void Start(ref OrderSaved orderSaved, SeedBot bot, string progress, string result)
     {
         var label = orderSaved.Progress.Label;
         var commands = FileUtil.Read(Path.Combine("orders", orderSaved.Script)).Split('\n');
@@ -52,7 +52,7 @@ public class OrderStarter
 
 
     private static JsonSerializer _serializer = new JsonSerializer() { ContractResolver = new CamelCasePropertyNamesContractResolver() };
-    public void Invoke(Order order, int start, BotEventHandler bot, OrderSaved saved, Stream progressStream, Stream reportStream)
+    public void Invoke(Order order, int start, BotEventHandler bot, OrderSaved saved, string progressStream, string reportStream)
     {
         var insts = order.Instructions;
         var progress = saved.Progress;
@@ -83,6 +83,14 @@ public class OrderStarter
             WriteJson(reportStream, report);
             bot.RemoveEvent();
         }
+    }
+
+    private static void WriteJson<T>(string path, T value)
+    {
+        using var stream = FileUtil.Create(path, FileMode.Truncate, FileAccess.Write);
+        using var streamWriter = new StreamWriter(stream);
+        using var jsonWriter = new JsonTextWriter(streamWriter);
+        _serializer.Serialize(jsonWriter, value);
     }
 
     private static void WriteJson<T>(Stream stream, T value)

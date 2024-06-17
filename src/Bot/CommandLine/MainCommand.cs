@@ -11,7 +11,8 @@ public class MainCommand : RootCommand
         var userName = FileUtil.GetValue("UserName");
         var wikiNamespaces = FileUtil.GetValues("WikiNamespaces");
         var bot = ConsoleBotCreator.Create("https://namu.wiki", wikiUri, apiToken, userName, wikiNamespaces);
-        Add(new OrderCommand(bot));
+        DefaultBot.Handler = bot;
+        Add(new OrderCommand());
     }
 
     private static void Test(SeedBot bot)

@@ -11,6 +11,8 @@ internal class BacklinkCommand : Command
         AddAlias("bl");
     }
 
+    public static Option<string> logOption = new("--log", () => "", "편집 요약을 지정합니다.");
+
     private Command Recategory(List<OrderDelegate> orders)
     {
         var cmd = new Command("recategory");
@@ -43,6 +45,7 @@ internal class BacklinkCommand : Command
         return cmd;
     }
 
+
     private Command GetEditBacklink(List<OrderDelegate> orders)
     {
         var cmd = new Command("replace");
@@ -72,7 +75,6 @@ internal class BacklinkCommand : Command
         var contextOption = new Option<bool>("--context", () => false);
         cmd.AddOption(contextOption);
 
-        var logOption = new Option<string>("--log", () => "");
         cmd.AddOption(logOption);
 
         cmd.SetHandler((source, destinaion, destinaionDisplay, from, sourceAnchor, destAnchor, log, context) =>
@@ -101,10 +103,15 @@ internal class SearchCommand : Command
         var destinationArg = new Argument<string>("destination");
         cmd.Add(destinationArg);
 
-        cmd.SetHandler((source, destinaion) =>
+        var targetOpt = new Option<string>("destination", () => "content");
+        cmd.Add(destinationArg);
+
+        cmd.Add(BacklinkCommand.logOption);
+
+        cmd.SetHandler((source, destinaion, target, log) =>
         {
-            orders.Add(OrderCreator.SearchReplace(source, destinaion));
-        }, sourceArg, destinationArg);
+            orders.Add(OrderCreator.SearchReplace(source, destinaion, target, log));
+        }, sourceArg, destinationArg, targetOpt, BacklinkCommand.logOption);
         return cmd;
     }
 }

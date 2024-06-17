@@ -1,34 +1,32 @@
 ﻿using Sugarmaple.Bot.CommandLine;
 using System.CommandLine;
 
-Console.WriteLine("[C]ontinue/[R]estart/[E]xit");
+Console.WriteLine("Sugarmaple 콘솔에 오신 걸 환영합니다!");
 const string taskFile = "startTask.json";
-string inputStr;
 
 var rootCmd = new MainCommand();
+Console.WriteLine("[C]ontinue/[R]estart/[E]xit");
 while (true)
 {
-    var input = Console.ReadLine()![0];
-    if (input is 'C' or 'c')
+    var input = Console.ReadLine();
+    var inputChar = input![0];
+    if (inputChar is 'C' or 'c')
     {
-        inputStr = $"order execute {taskFile};";
+        input = $"order execute {taskFile}";
+    }
+    else if (inputChar is 'R' or 'r')
+    {
+        input = $"order reset {taskFile}";
+    }
+    else if (inputChar is 'E' or 'e')
+    {
         break;
     }
-    if (input is 'R' or 'r')
-    {
-        inputStr = $"order reset {taskFile};";
-        rootCmd.InvokeSeveral(inputStr);
-    }
-    if (input is 'E' or 'e')
-    {
-        return;
-    }
-    if (input is '?')
+    else if (inputChar is '?')
     {
         rootCmd.Invoke("?");
     }
+    await rootCmd.InvokeAsync(input);
 }
 
-
-rootCmd.InvokeSeveral(inputStr);
 Console.WriteLine("모든 작업이 종료되었습니다.");

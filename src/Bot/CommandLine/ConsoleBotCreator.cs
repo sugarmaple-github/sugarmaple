@@ -4,11 +4,16 @@ using Sugarmaple.TheSeed.Crawler;
 using Sugarmaple.TheSeed.Namumark;
 using System.Text;
 
-internal class ConsoleBotState
+internal class ConsoleBotHandler
 {
-    private bool _checkEditMod = true;
+    public bool CheckEditMode { get; set; }
+    public SeedBot Bot { get; init; }
+    public ConsoleBotHandler(SeedBot bot) => Bot = bot;
+
     private int _lastEditCountBeforeCheck;
     private int _editTerm;
+    private bool _wasChanged;
+    private bool _wasFormatted;
     private string? _beforeEdit;
 
     public event Action<string, string>? DetectingChange;
@@ -18,16 +23,26 @@ internal class ConsoleBotState
         _beforeEdit = body;
     }
 
-    public string BeforeEveryPost(string title, Document body)
+    public void DocumentPosting(string title, Document body)
     {
-        var formatter = NamuFormatter.Default;
-        var ret = formatter.ToMarkup(body);
-        if (_checkEditMod)
+        _wasChanged = body.IsChanged;
+        _wasFormatted = true;
+    }
+
+
+    public string ApiPosting(string title, string body)
+    {
+        var ret = body;
+        if (CheckEditMode)
         {
-            DetectingChange?.Invoke(_beforeEdit, ret);
+            DetectingChange?.Invoke(_beforeEdit, body);
             Console.WriteLine($"{title} 결과:");
             string message;
-            if (body.IsChanged)
+            if (!_wasFormatted)
+                _wasChanged = _beforeEdit != body;
+
+
+            if (_wasChanged)
             {
                 message = "편집을 승인하려면 엔터 키를 눌러주세요. 편집 모드를 중단하려면 s를 누르세요.";
             }
@@ -38,13 +53,13 @@ internal class ConsoleBotState
             Console.WriteLine(message);
 
             var line = Console.ReadLine() ?? throw new Exception("Something Wrong");
-            if (line == "s") _checkEditMod = false;
+            if (line == "s") CheckEditMode = false;
             else if (line.StartsWith("skip"))
             {
                 var splited = line!.Split(' ');
                 var term = int.Parse(splited[1]);
                 _lastEditCountBeforeCheck = _editTerm = term;
-                _checkEditMod = false;
+                CheckEditMode = false;
             }
             ret = FileUtil.Read("after_edit.txt");
         }
@@ -54,8 +69,10 @@ internal class ConsoleBotState
             Console.Write($"{_lastEditCountBeforeCheck}회 당 검토 중(check를 입력하여 중지합니다.)");
             var line = Console.ReadLine();
             if (line == "check")
-                _checkEditMod = true;
+                CheckEditMode = true;
         }
+        _wasChanged = false;
+        _wasFormatted = false;
         return ret;
     }
 
@@ -79,7 +96,7 @@ internal class ConsoleBotState
 
     public void OnEveryPost(EditPostResult arg)
     {
-        Console.WriteLine($"문서 {arg.Document}  r {arg.Rev} 편집 완료.");
+        Console.WriteLine($"{arg.Document}  r{arg.Rev} 편집 완료.");
         //if (_checkEditMod)
         //    _crawler.ShowDiff(doc, rev);
     }
@@ -87,23 +104,25 @@ internal class ConsoleBotState
 
 internal class ConsoleBotCreator
 {
-    public static SeedBot Create(string wikiUri, string wikiApiUri, string apiToken, string userName, string[] wikiNamespaces)
+    public static ConsoleBotHandler Create(string wikiUri, string wikiApiUri, string apiToken, string userName, string[] wikiNamespaces)
     {
-        var state = new ConsoleBotState();
+        var bot = new SeedBot(wikiUri, wikiApiUri, apiToken, userName, wikiNamespaces);
+
+        var state = new ConsoleBotHandler(bot);
         state.DetectingChange += (older, newer) =>
         {
             FileUtil.Write("before_edit.txt", older);
             FileUtil.Write("after_edit.txt", newer);
         };
 
-        var bot = new SeedBot(wikiUri, wikiApiUri, apiToken, userName, wikiNamespaces);
         bot.OnGetEditSuccessfully += state.BeforeEveryEdit;
-        bot.DocumentPosting += state.BeforeEveryPost;
+        bot.DocumentPosting += state.DocumentPosting;
+        bot.ApiPosting += state.ApiPosting;
         bot.OnPostSameDoc += state.OnEditWhenNoDiff;
         bot.OnPostSuccessfully.Event += state.OnEveryPost;
         bot.OnLackOfPermission += state.OnLackOfPermission;
         bot.OnBacklink += state.OnBacklink;
         bot.LogMakerDict["ReplaceBacklink"] = args => $"[자동] 역링크 정리 \"{args[0]}\" -> \"{args[1]}\" (사유: {args[2]})";
-        return bot;
+        return state;
     }
 }

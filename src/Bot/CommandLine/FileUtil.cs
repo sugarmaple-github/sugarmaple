@@ -1,6 +1,8 @@
 ﻿// See https://aka.ms/new-console-template for more information
 namespace Sugarmaple.Bot.CommandLine;
 using Microsoft.Extensions.Configuration;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;
 using Sugarmaple.TheSeed.Api;
 using Sugarmaple.TheSeed.Crawler;
 
@@ -64,11 +66,17 @@ internal static class FileUtil
         File.WriteAllText(fileLoc, content);
     }
 
-    public static FileStream Create(string name)
+    public static FileStream Create(string name, FileMode mode = default, FileAccess access = default)
     {
         var fileLoc = Path.Combine(_path, name);
-        return File.Create(fileLoc);
+        return new FileStream(fileLoc, mode, access);
     }
+    public static FileStream OpenRead(string name)
+    {
+        var fileLoc = Path.Combine(_path, name);
+        return File.OpenRead(fileLoc);
+    }
+
 
     public static FileStream OpenWrite(string name)
     {
@@ -80,6 +88,15 @@ internal static class FileUtil
         var fileLoc = Path.Combine(_path, name);
         var ret = File.ReadAllText(fileLoc);
         return ret;
+    }
+
+    static JsonSerializer _serializer = new() { ContractResolver = new CamelCasePropertyNamesContractResolver() };
+
+    public static T GetDeserializedJson<T>(string path, JsonSerializer serializer)
+    {
+        using var file = new StreamReader(OpenRead(path));
+        using var j = new JsonTextReader(file);
+        return serializer.Deserialize<T>(j)!;
     }
 
     public static string[] GetDocs()

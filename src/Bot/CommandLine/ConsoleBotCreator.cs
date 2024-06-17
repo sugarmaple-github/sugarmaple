@@ -4,9 +4,12 @@ using Sugarmaple.TheSeed.Crawler;
 using Sugarmaple.TheSeed.Namumark;
 using System.Text;
 
-internal class ConsoleBotState
+internal class ConsoleBotHandler
 {
-    private bool _checkEditMod = true;
+    public bool CheckEditMode { get; set; }
+    public SeedBot Bot { get; init; }
+    public ConsoleBotHandler(SeedBot bot) => Bot = bot;
+
     private int _lastEditCountBeforeCheck;
     private int _editTerm;
     private bool _wasChanged;
@@ -30,7 +33,7 @@ internal class ConsoleBotState
     public string ApiPosting(string title, string body)
     {
         var ret = body;
-        if (_checkEditMod)
+        if (CheckEditMode)
         {
             DetectingChange?.Invoke(_beforeEdit, body);
             Console.WriteLine($"{title} 결과:");
@@ -50,13 +53,13 @@ internal class ConsoleBotState
             Console.WriteLine(message);
 
             var line = Console.ReadLine() ?? throw new Exception("Something Wrong");
-            if (line == "s") _checkEditMod = false;
+            if (line == "s") CheckEditMode = false;
             else if (line.StartsWith("skip"))
             {
                 var splited = line!.Split(' ');
                 var term = int.Parse(splited[1]);
                 _lastEditCountBeforeCheck = _editTerm = term;
-                _checkEditMod = false;
+                CheckEditMode = false;
             }
             ret = FileUtil.Read("after_edit.txt");
         }
@@ -66,7 +69,7 @@ internal class ConsoleBotState
             Console.Write($"{_lastEditCountBeforeCheck}회 당 검토 중(check를 입력하여 중지합니다.)");
             var line = Console.ReadLine();
             if (line == "check")
-                _checkEditMod = true;
+                CheckEditMode = true;
         }
         _wasChanged = false;
         _wasFormatted = false;
@@ -101,16 +104,17 @@ internal class ConsoleBotState
 
 internal class ConsoleBotCreator
 {
-    public static SeedBot Create(string wikiUri, string wikiApiUri, string apiToken, string userName, string[] wikiNamespaces)
+    public static ConsoleBotHandler Create(string wikiUri, string wikiApiUri, string apiToken, string userName, string[] wikiNamespaces)
     {
-        var state = new ConsoleBotState();
+        var bot = new SeedBot(wikiUri, wikiApiUri, apiToken, userName, wikiNamespaces);
+
+        var state = new ConsoleBotHandler(bot);
         state.DetectingChange += (older, newer) =>
         {
             FileUtil.Write("before_edit.txt", older);
             FileUtil.Write("after_edit.txt", newer);
         };
 
-        var bot = new SeedBot(wikiUri, wikiApiUri, apiToken, userName, wikiNamespaces);
         bot.OnGetEditSuccessfully += state.BeforeEveryEdit;
         bot.DocumentPosting += state.DocumentPosting;
         bot.ApiPosting += state.ApiPosting;
@@ -119,6 +123,6 @@ internal class ConsoleBotCreator
         bot.OnLackOfPermission += state.OnLackOfPermission;
         bot.OnBacklink += state.OnBacklink;
         bot.LogMakerDict["ReplaceBacklink"] = args => $"[자동] 역링크 정리 \"{args[0]}\" -> \"{args[1]}\" (사유: {args[2]})";
-        return bot;
+        return state;
     }
 }

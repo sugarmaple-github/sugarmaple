@@ -21,15 +21,24 @@ public class ConsoleMessage
     public void ShowMessage(string key, params object?[]? args) => Console.WriteLine(GetMessage(key), args);
 }
 
+internal static class DefaultBot
+{
+    public static ConsoleBotHandler Handler { get; set; }
+}
+
 public class OrderCommand : Command
 {
-    internal OrderCommand(SeedBot bot) : base("order")
+    internal OrderCommand() : base("order")
     {
         var executeCommand = new Command("execute");
         Add(executeCommand);
+
         var taskNameArgument = new Argument<string>();
         executeCommand.Add(taskNameArgument);
-        executeCommand.SetHandler((task) => Progress(task, bot), taskNameArgument);
+
+        var checkingOption = new Argument<bool>(() => true);
+
+        executeCommand.SetHandler(async (task, checking) => await Progress(task, DefaultBot.Handler, checking), taskNameArgument, checkingOption);
 
         var resetCmd = new Command("reset");
         Add(resetCmd);
@@ -54,13 +63,15 @@ public class OrderCommand : Command
         json.WriteTo(jsonWriter);
     }
 
-    private static void Progress(string orderName, SeedBot bot)
+    private static Task Progress(string orderName, ConsoleBotHandler handler, bool checking)
     {
         Console.Clear();
         ConsoleMessage.Default.ShowMessage("OrderStart", orderName);
 
+        handler.CheckEditMode = checking;
+
         var starter = new OrderStarter();
-        starter.Start(orderName, bot);
+        return starter.Start(orderName, handler.Bot);
     }
 }
 

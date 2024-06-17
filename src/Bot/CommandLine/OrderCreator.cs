@@ -51,6 +51,6 @@ public static class OrderCreator
 
     public static OrderDelegate SearchReplace(string source, string destination, string log) => async (b, c) =>
     {
-        b.Bot.ReplaceSearch(source, destination, c.Page, log);
+        await b.Bot.ReplaceSearch(source, destination, c.Page, log);
     };
 }

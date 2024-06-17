@@ -230,47 +230,36 @@ public static class SeedApiClientExtensions
             if (from == null) yield break;
             var backlink = await self.GetBacklinkFromAsync(document, @namespace, from);
             if (backlink == null) yield break;
-            foreach (var o in backlink.Backlinks.ToAsyncEnumerable().Concat(Inner(backlink.From)))
+            await foreach (var o in backlink.Backlinks.ToAsyncEnumerable().Concat(Inner(backlink.From)))
                 yield return o;
         }
     }
     //값만 바꾸고 반복해서 구현
 
-    //private static async IAsyncEnumerable<BacklinkPair> GetBacklinkOne(this ISeedApiClient self, string document, string @namespace, string from)
-    //{
-    //    var backlinkTask = self.GetBacklinkFromAsync(document, @namespace, from);
-    //    BacklinkResult? backlink;
-    //    do
-    //    {
-    //        backlink = await backlinkTask;
-    //        foreach (var item in backlink.Backlinks)
-    //        {
-    //            yield return item;
-    //        }
-    //    } while (backlink.TryGetNextAsync(out backlinkTask));
-    //}
-
     public async static IAsyncEnumerable<BacklinkPair> GetBacklinksAsync(this ISeedApiClient self, string document, string from, IEnumerable<string> denialNamespaces)
     {
         var first = await self.GetBacklinkFromAsync(document, "", from);
+        if (first == null) yield break;
+
         var namespaces = first.Namespaces;
-        if (namespaces.Count == 0)
-            yield break;
+        if (namespaces.Count == 0) yield break;
+
+        var ret = Enumerable.Empty<BacklinkPair>().ToAsyncEnumerable();
         if (!denialNamespaces.Contains(namespaces[0].Namespace))
         {
-            foreach (var o in first.Backlinks)
-                yield return o;
+            ret = ret.Concat(first.Backlinks.ToAsyncEnumerable());
             if (first.From != null)
             {
-                await foreach (var o in self.GetBacklinkOne(document, namespaces[0].Namespace, first.From))
-                    yield return o;
+                ret = ret.Concat(self.GetBacklinkOne(document, namespaces[0].Namespace, first.From));
             }
         }
-        foreach (var o in namespaces.Skip(1).ExceptBy(denialNamespaces, o => o.Namespace))
-        {
-            await foreach (var p in self.GetBacklinkOne(document, o.Namespace, ""))
-                yield return p;
-        }
+
+        ret = ret.Concat(
+            namespaces.Skip(1).ExceptBy(denialNamespaces, o => o.Namespace).ToAsyncEnumerable()
+            .SelectMany(o => self.GetBacklinkOne(document, o.Namespace, "")));
+
+        await foreach (var o in ret)
+            yield return o;
     }
 }
 

@@ -12,19 +12,23 @@ public static class SeedBotExtensions
     public static async IAsyncEnumerable<EditView> GetBacklinksFEdit(this SeedBot self, string document, NamespaceMask nsMask, string from)
     {
         var docs = self.GetBacklinksAsync(document, from, (~nsMask).ToNames(self.WikiNamespaces)).Select(o => o.Document);
-        await foreach (var o in docs.SelectAwait(async o => await self.GetEditAsync(o)).Where(o => o != null))
-        {
-            yield return o;
-        }
         if (document.StartsWith("분류:"))
         {
             var categorizedDocs = self.GetCategoryDocument(document);
-            var categorydocs = categorizedDocs.Select(async o => await self.GetEditAsync(o))
-                .ToAsyncEnumerable().SelectAwait(async o => await o).Where(o => o != null);
-            await foreach (var o in categorydocs)
-            {
+            var categorydocs = categorizedDocs.ToAsyncEnumerable();
+            docs = docs.Concat(categorydocs);
+        }
+
+        await foreach (var o in docs.GetViews(self))
+            yield return o;
+    }
+
+    public static async IAsyncEnumerable<EditView> GetViews(this IAsyncEnumerable<string> docs, SeedBot self)
+    {
+        await foreach (var o in docs.SelectAwait(async o => await self.GetEditAsync(o)))
+        {
+            if (o != null)
                 yield return o;
-            }
         }
     }
 
@@ -189,48 +193,14 @@ public static class SeedBotExtensions
         }
     }
 
-    public static void ReplaceSearch(this SeedBot self, string source, string destination, int page = 1, string? log = null)
+    public static async Task ReplaceSearch(this SeedBot self, string source, string destination, int page = 1, string? log = null)
     {
-        foreach (var o in self.Crawler.SearchFull("raw", source, "문서").Select(o => self.GetEditAsync(o).Result))
+        await foreach (var o in self.Crawler.SearchFull("raw", source, "문서").ToAsyncEnumerable().GetViews(self))
         {
-            if (o == null)
-                continue;
-            Debug.Assert(o.Exist);
+            if (o == null) continue;
+            Debug.Assert(o.Exist); //존재하지 않는 문서를 편집할 수는 없습니다.
             var newContent = o.Text.Replace(source, destination);
-            o.PostEditAsync(newContent, $"[자동] '{source}' -> '{destination}' 변경 ({log})");
-        }
-    }
-
-    //개발 중인 함수
-    public static void ReplaceSearch(this SeedBot self)
-    {
-        const string ColorFrom = "1f2023";
-
-        var page = 1;
-        var changePage = false;
-        while (true)
-        {
-            var list = self.Crawler.Search_old("raw", ColorFrom, "문서", page);
-            if (!list.Any())
-                break;
-            foreach (var o in list)
-            {
-                var view = self.GetEditAsync(o).Result;
-                if (view == null)
-                {
-                    changePage = true;
-                    continue;
-                }
-                Debug.Assert(view.Exist);
-
-                var newText = view.Text.Replace(ColorFrom, "1c1d1f");
-                view.PostEditAsync(newText, $"[자동 편집] 1f2023 -> 1c1d1f 색상 변경");
-            }
-            if (changePage)
-            {
-                changePage = false;
-                page++;
-            }
+            await o.PostEditAsync(newContent, $"[자동] '{source}' -> '{destination}' 변경 ({log})");
         }
     }
 }

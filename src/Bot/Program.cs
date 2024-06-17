@@ -29,6 +29,5 @@ while (true)
     }
 }
 
-
 rootCmd.InvokeSeveral(inputStr);
-Console.WriteLine("모든 작업이 종료되었습니다.");
+//Console.WriteLine("모든 작업이 종료되었습니다.");

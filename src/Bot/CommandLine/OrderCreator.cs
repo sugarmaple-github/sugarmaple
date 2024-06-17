@@ -49,8 +49,8 @@ public static class OrderCreator
         await b.Bot.MakeEditOnly(source, from: c.From ?? from);
     };
 
-    public static OrderDelegate SearchReplace(string source, string destination, string log) => async (b, c) =>
+    public static OrderDelegate SearchReplace(string source, string destination, string target, string log) => async (b, c) =>
     {
-        await b.Bot.ReplaceSearch(source, destination, c.Page, log);
+        await b.Bot.ReplaceSearch(source, destination, target, c.Page, log);
     };
 }

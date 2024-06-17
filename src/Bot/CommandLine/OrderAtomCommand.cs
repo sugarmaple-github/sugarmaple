@@ -103,12 +103,15 @@ internal class SearchCommand : Command
         var destinationArg = new Argument<string>("destination");
         cmd.Add(destinationArg);
 
+        var targetOpt = new Option<string>("destination", () => "content");
+        cmd.Add(destinationArg);
+
         cmd.Add(BacklinkCommand.logOption);
 
-        cmd.SetHandler((source, destinaion, log) =>
+        cmd.SetHandler((source, destinaion, target, log) =>
         {
-            orders.Add(OrderCreator.SearchReplace(source, destinaion, log));
-        }, sourceArg, destinationArg, BacklinkCommand.logOption);
+            orders.Add(OrderCreator.SearchReplace(source, destinaion, target, log));
+        }, sourceArg, destinationArg, targetOpt, BacklinkCommand.logOption);
         return cmd;
     }
 }

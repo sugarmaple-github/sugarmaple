@@ -193,9 +193,9 @@ public static class SeedBotExtensions
         }
     }
 
-    public static async Task ReplaceSearch(this SeedBot self, string source, string destination, int page = 1, string? log = null)
+    public static async Task ReplaceSearch(this SeedBot self, string source, string destination, string target, int page = 1, string? log = null)
     {
-        await foreach (var o in self.Crawler.SearchFull("raw", source, "문서").ToAsyncEnumerable().GetViews(self))
+        await foreach (var o in self.Crawler.SearchFull(target, source, "문서").ToAsyncEnumerable().GetViews(self))
         {
             if (o == null) continue;
             Debug.Assert(o.Exist); //존재하지 않는 문서를 편집할 수는 없습니다.

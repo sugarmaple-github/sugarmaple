@@ -56,24 +56,8 @@ public class OrderCommand : Command
 
     private static void Progress(string orderName, SeedBot bot)
     {
+        Console.Clear();
         ConsoleMessage.Default.ShowMessage("OrderStart", orderName);
-
-        //var path = Path.Combine("tasks", orderName);
-        //OrderSaved defaultValue = new() { Script = "aa", Progress = new() };
-        //var s = JsonConvert.SerializeObject(defaultValue);
-
-        //var file = FileUtil.OpenWrite(path);
-        //using var streamWriter = new StreamWriter(file);
-        //{
-        //    using var writer = new JsonTextWriter(streamWriter) { Indentation = 4, IndentChar = ' ' };
-        //    new JsonSerializer() { ContractResolver = new CamelCasePropertyNamesContractResolver() }.Serialize(writer, defaultValue);
-        //}
-        //file.Dispose();
-
-        //var order = FileUtil.GetDeserializedJson<OrderSaved>(path, new());
-
-        //var fileStream = FileUtil.Create(path);
-        // var streamWriter = new StreamWriter(fileStream);
 
         var starter = new OrderStarter();
         starter.Start(orderName, bot);
@@ -96,24 +80,6 @@ internal class CommandCompiler
 }
 
 public delegate Task OrderDelegate(BotEventHandler bot, OrderContext starter);
-
-ref struct EventRegister<T>
-{
-    ref EventPublisher<T> _action;
-    Action<T> _target;
-
-    public EventRegister(ref EventPublisher<T> action, Action<T> target)
-    {
-        _action = ref action;
-        _target = target;
-        _action.Event += target;
-    }
-
-    public void Dispose()
-    {
-        _action.Event -= _target;
-    }
-}
 
 public class Order
 {

@@ -29,7 +29,7 @@ public struct OrderSaved
 
 public class OrderStarter
 {
-    public void Start(string orderName, SeedBot bot)
+    public Task Start(string orderName, SeedBot bot)
     {
         var progresssPath = Path.Combine("tasks", orderName);
         var order = FileUtil.GetDeserializedJson<OrderSaved>(progresssPath, _serializer);
@@ -39,20 +39,20 @@ public class OrderStarter
         //using var progressFileStream = FileUtil.Create(progresssPath, FileMode.OpenOrCreate, FileAccess.ReadWrite);
         //using var resultFileStream = FileUtil.Create(reportPath, FileMode.Create, FileAccess.ReadWrite);
 
-        Start(ref order, bot, progresssPath, reportPath);
+        return Start(ref order, bot, progresssPath, reportPath);
     }
 
-    public void Start(ref OrderSaved orderSaved, SeedBot bot, string progress, string result)
+    public Task Start(ref OrderSaved orderSaved, SeedBot bot, string progress, string result)
     {
         var label = orderSaved.Progress.Label;
         var commands = FileUtil.Read(Path.Combine("orders", orderSaved.Script)).Split('\n');
         var order = CommandCompiler.Default.Build(commands);
-        Invoke(order, label, new(bot), orderSaved, progress, result);
+        return Invoke(order, label, new(bot), orderSaved, progress, result);
     }
 
 
     private static JsonSerializer _serializer = new JsonSerializer() { ContractResolver = new CamelCasePropertyNamesContractResolver() };
-    public void Invoke(Order order, int start, BotEventHandler bot, OrderSaved saved, string progressStream, string reportStream)
+    public async Task Invoke(Order order, int start, BotEventHandler bot, OrderSaved saved, string progressStream, string reportStream)
     {
         var insts = order.Instructions;
         var progress = saved.Progress;
@@ -74,7 +74,7 @@ public class OrderStarter
                     WriteJson(progressStream, saved);
                 };
 
-            insts[i].Invoke(bot, context);
+            await insts[i].Invoke(bot, context);
 
             progress.Label = i + 1;
             progress.Context = new();

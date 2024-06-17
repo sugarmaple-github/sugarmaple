@@ -95,7 +95,7 @@ internal class CommandCompiler
     }
 }
 
-public delegate void OrderDelegate(BotEventHandler bot, OrderContext starter);
+public delegate Task OrderDelegate(BotEventHandler bot, OrderContext starter);
 
 ref struct EventRegister<T>
 {

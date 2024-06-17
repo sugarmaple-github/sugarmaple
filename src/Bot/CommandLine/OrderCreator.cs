@@ -6,7 +6,7 @@ public static class OrderCreator
 {
     public static OrderDelegate ReplaceBacklink(string source, string destination,
         string? destinationDisplay = null,
-        string from = "", string? sourceAnchor = null, string? destAnchor = null, string? log = null, bool context = false) => (b, s) =>
+        string from = "", string? sourceAnchor = null, string? destAnchor = null, string? log = null, bool context = false) => async (b, s) =>
         {
             IEnumerator? searchRoutine = null;
             //IEnumerator<IWebElement>? enumerator_old = null;
@@ -21,7 +21,7 @@ public static class OrderCreator
             //페이지를 읽어올 때마다, 다른 페이지 열어서
 
             //Func<bool>인 이벤트가 필요.
-            b.Bot.ReplaceBacklink(source, destination,
+            await b.Bot.ReplaceBacklink(source, destination,
                 destinationDisplay: destinationDisplay,
                 from: s.From ?? from,
                 sourceAnchor: sourceAnchor,
@@ -44,12 +44,12 @@ public static class OrderCreator
             }
         };
 
-    public static OrderDelegate MakeEditOnly(string source, string from) => (b, c) =>
+    public static OrderDelegate MakeEditOnly(string source, string from) => async (b, c) =>
     {
-        b.Bot.MakeEditOnly(source, from: c.From ?? from);
+        await b.Bot.MakeEditOnly(source, from: c.From ?? from);
     };
 
-    public static OrderDelegate SearchReplace(string source, string destination, string log) => (b, c) =>
+    public static OrderDelegate SearchReplace(string source, string destination, string log) => async (b, c) =>
     {
         b.Bot.ReplaceSearch(source, destination, c.Page, log);
     };

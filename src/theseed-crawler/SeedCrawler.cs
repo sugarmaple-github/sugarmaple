@@ -1,22 +1,14 @@
 ﻿namespace Sugarmaple.TheSeed.Crawler;
 using HtmlAgilityPack;
-using Microsoft.VisualBasic;
 using Newtonsoft.Json.Linq;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
-using OpenQA.Selenium.DevTools;
-using OpenQA.Selenium.Interactions;
 using OpenQA.Selenium.Support.UI;
 using SeleniumExtras.WaitHelpers;
-using Sugarmaple.TheSeed.Api;
 using System;
 using System.Collections;
 using System.Diagnostics;
 using System.Globalization;
-using System.IO;
-using System.Reflection.Metadata;
-using System.Xml.Linq;
-using DevToolsSessionDomains = OpenQA.Selenium.DevTools.V125.DevToolsSessionDomains;
 
 public class SeedCrawler
 {

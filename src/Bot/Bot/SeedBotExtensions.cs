@@ -9,35 +9,42 @@ using System.Linq;
 
 public static class SeedBotExtensions
 {
-    public static IEnumerable<EditView> GetBacklinksFEdit(this SeedBot self, string document, NamespaceMask nsMask, string from)
+    public static async IAsyncEnumerable<EditView> GetBacklinksFEdit(this SeedBot self, string document, NamespaceMask nsMask, string from)
     {
-        var docs = self.GetBacklinks(document, from, (~nsMask).ToNames(self.WikiNamespaces)).Select(o => o.Document);
+        var docs = self.GetBacklinksAsync(document, from, (~nsMask).ToNames(self.WikiNamespaces)).Select(o => o.Document);
+        await foreach (var o in docs.SelectAwait(async o => await self.GetEditAsync(o)).Where(o => o != null))
+        {
+            yield return o;
+        }
         if (document.StartsWith("분류:"))
         {
             var categorizedDocs = self.GetCategoryDocument(document);
-            docs = docs.Concat(categorizedDocs);
+            var categorydocs = categorizedDocs.Select(async o => await self.GetEditAsync(o))
+                .ToAsyncEnumerable().SelectAwait(async o => await o).Where(o => o != null);
+            await foreach (var o in categorydocs)
+            {
+                yield return o;
+            }
         }
-
-        return docs.Select(o => self.GetEditAsync(o).Result!).Where(o => o != null);
     }
 
-    public static IEnumerable<Document> BacklinkBodies(this SeedBot _bot, string document, NamespaceMask @namespace, string fromValue, string log)
+    public static async IAsyncEnumerable<Document> BacklinkBodies(this SeedBot _bot, string document, NamespaceMask @namespace, string fromValue, string log)
     {
         var backlinks = _bot.GetBacklinksFEdit(document, @namespace, fromValue);
-        foreach (var view in backlinks)
+        await foreach (var view in backlinks)
         {
             var doc = DocumentFactory.Default.Parse(view.Text);
             yield return doc;
-            _bot.PostEditAsync(view, doc, log);
+            await _bot.PostEditAsync(view, doc, log);
             doc.Dispose();
         }
     }
 
-    public static IEnumerable<IReferer> BacklinkReferers(this SeedBot _bot, string document, NamespaceMask @namespace, string fromValue, string log)
+    public static IAsyncEnumerable<IReferer> BacklinkReferers(this SeedBot _bot, string document, NamespaceMask @namespace, string fromValue, string log)
         => _bot.BacklinkReferers<IReferer>(document, @namespace, fromValue, log);
 
-    public static IEnumerable<T> BacklinkReferers<T>(this SeedBot _bot, string document, NamespaceMask @namespace, string fromValue, string log) where T : IReferer
-        => _bot.BacklinkBodies(document, @namespace, fromValue, log).SelectMany(o => o.QuerySelectorAll<T>("*")).Where(o =>
+    public static IAsyncEnumerable<T> BacklinkReferers<T>(this SeedBot _bot, string document, NamespaceMask @namespace, string fromValue, string log) where T : IReferer
+        => _bot.BacklinkBodies(document, @namespace, fromValue, log).SelectMany(o => o.QuerySelectorAll<T>("*").ToAsyncEnumerable()).Where(o =>
         {
             NamuNormalizer.Default.Normalize(o);
             return o.Reference == document;
@@ -54,7 +61,7 @@ public static class SeedBotExtensions
     /// </param>
     /// <param name="from"></param>
     /// <param name="log"></param>
-    public static void ReplaceBacklink(this SeedBot _bot,
+    public static async Task ReplaceBacklink(this SeedBot _bot,
         string source, string destination,
         string? destinationDisplay = null, string from = "",
         string? sourceAnchor = null, string? destAnchor = null,
@@ -63,7 +70,7 @@ public static class SeedBotExtensions
         var fullLog = _bot.LogMakerDict[nameof(ReplaceBacklink)](source, destination, log);
         if (IsFrame(source) && !IsFrame(destination))
         {
-            _bot.ReplaceBacklinkFrameToNotFrame(source, destination, destinationDisplay, from, sourceAnchor, destAnchor, fullLog);
+            await _bot.ReplaceBacklinkFrameToNotFrame(source, destination, destinationDisplay, from, sourceAnchor, destAnchor, fullLog);
             return;
         }
 
@@ -76,7 +83,7 @@ public static class SeedBotExtensions
         if (sourceAnchor != null)
             targets = targets.Where(o => o is InternalLink i && i.Anchor == sourceAnchor);
 
-        foreach (var o in targets)
+        await foreach (var o in targets)
         {
             if (predicate?.Invoke() != false)
             {
@@ -92,7 +99,7 @@ public static class SeedBotExtensions
         }
     }
 
-    private static void ReplaceBacklinkFrameToNotFrame(this SeedBot self, string source, string destination,
+    private static async Task ReplaceBacklinkFrameToNotFrame(this SeedBot self, string source, string destination,
         string? destinationDisplay = null, string from = "",
         string? sourceAnchor = null, string? destAnchor = null,
         string? log = null)
@@ -102,7 +109,7 @@ public static class SeedBotExtensions
         if (sourceAnchor != null)
             targets = targets.Where(o => o is InternalLink i && i.Anchor == sourceAnchor);
 
-        foreach (var o in targets)
+        await foreach (var o in targets)
         {
             if (o is Include)
             {
@@ -116,13 +123,13 @@ public static class SeedBotExtensions
         }
     }
 
-    public static void MakeEditOnly(this SeedBot self, string source, string from)
+    public static async Task MakeEditOnly(this SeedBot self, string source, string from)
     {
         var editors = self.BacklinkReferers(source,
             @namespace: ~NamespaceMask.Wiki,
             fromValue: from,
             log: $"[자동 편집] {source} 틀 ##@ 문법 적용");
-        foreach (var o in editors)
+        await foreach (var o in editors)
         {
             if (o is Include include)
             {

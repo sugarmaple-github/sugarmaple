@@ -1,17 +1,15 @@
 ﻿namespace Sugarmaple.TheSeed.Api;
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Reflection.Metadata;
 using System.Threading.Tasks;
-using static System.Net.Mime.MediaTypeNames;
 
 public record struct EditPostResult(string Document, int Rev);
 public class SeedApiClient : ISeedApiClient
 {
     private readonly JsonClient _client;
-
     public event Action<EditGetError>? OnGetEditError;
     public event Action<EditPostError>? OnPostEditError;
     public event Action<string>? OnBacklinkError;
@@ -223,37 +221,56 @@ public interface ISeedApiClient
 
 public static class SeedApiClientExtensions
 {
-    private static IEnumerable<BacklinkPair> GetBacklinkOne(this ISeedApiClient self, string document, string @namespace, string from)
+    private static IAsyncEnumerable<BacklinkPair> GetBacklinkOne(this ISeedApiClient self, string document, string @namespace, string from)
     {
-        var backlink = self.GetBacklinkFromAsync(document, @namespace, from).Result;
-        do
-        {
-            foreach (var item in backlink.Backlinks)
-            {
-                yield return item;
-            }
-        } while (backlink.TryGetNext(out backlink));
-    }
+        return Inner(from);
 
-    public static IEnumerable<BacklinkPair> GetBacklinks(this ISeedApiClient self, string document, string from, IEnumerable<string> denialNamespaces)
+        async IAsyncEnumerable<BacklinkPair> Inner(string? from)
+        {
+            if (from == null) yield break;
+            var backlink = await self.GetBacklinkFromAsync(document, @namespace, from);
+            if (backlink == null) yield break;
+            foreach (var o in backlink.Backlinks.ToAsyncEnumerable().Concat(Inner(backlink.From)))
+                yield return o;
+        }
+    }
+    //값만 바꾸고 반복해서 구현
+
+    //private static async IAsyncEnumerable<BacklinkPair> GetBacklinkOne(this ISeedApiClient self, string document, string @namespace, string from)
+    //{
+    //    var backlinkTask = self.GetBacklinkFromAsync(document, @namespace, from);
+    //    BacklinkResult? backlink;
+    //    do
+    //    {
+    //        backlink = await backlinkTask;
+    //        foreach (var item in backlink.Backlinks)
+    //        {
+    //            yield return item;
+    //        }
+    //    } while (backlink.TryGetNextAsync(out backlinkTask));
+    //}
+
+    public async static IAsyncEnumerable<BacklinkPair> GetBacklinksAsync(this ISeedApiClient self, string document, string from, IEnumerable<string> denialNamespaces)
     {
-        var first = self.GetBacklinkFromAsync(document, "", from).Result;
+        var first = await self.GetBacklinkFromAsync(document, "", from);
         var namespaces = first.Namespaces;
-        var ret = Enumerable.Empty<BacklinkPair>();
         if (namespaces.Count == 0)
-            return ret;
+            yield break;
         if (!denialNamespaces.Contains(namespaces[0].Namespace))
         {
-            ret = ret.Concat(first.Backlinks);
+            foreach (var o in first.Backlinks)
+                yield return o;
             if (first.From != null)
             {
-                ret = ret.Concat(self.GetBacklinkOne(document, namespaces[0].Namespace, first.From));
+                await foreach (var o in self.GetBacklinkOne(document, namespaces[0].Namespace, first.From))
+                    yield return o;
             }
         }
-        ret = ret.Concat(
-                namespaces.Skip(1).ExceptBy(denialNamespaces, o => o.Namespace).SelectMany(o => self.GetBacklinkOne(document, o.Namespace, ""))
-            );
-        return ret;
+        foreach (var o in namespaces.Skip(1).ExceptBy(denialNamespaces, o => o.Namespace))
+        {
+            await foreach (var p in self.GetBacklinkOne(document, o.Namespace, ""))
+                yield return p;
+        }
     }
 }
 

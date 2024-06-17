@@ -21,7 +21,7 @@ public static class OrderCreator
             //페이지를 읽어올 때마다, 다른 페이지 열어서
 
             //Func<bool>인 이벤트가 필요.
-            await b.Bot.ReplaceBacklink(source, destination,
+            await b.Bot.ReplaceBacklinkAsync(source, destination,
                 destinationDisplay: destinationDisplay,
                 from: s.From ?? from,
                 sourceAnchor: sourceAnchor,
@@ -46,11 +46,11 @@ public static class OrderCreator
 
     public static OrderDelegate MakeEditOnly(string source, string from) => async (b, c) =>
     {
-        await b.Bot.MakeEditOnly(source, from: c.From ?? from);
+        await b.Bot.MakeEditOnlyAsync(source, from: c.From ?? from);
     };
 
     public static OrderDelegate SearchReplace(string source, string destination, string target, string log) => async (b, c) =>
     {
-        await b.Bot.ReplaceSearch(source, destination, target, c.Page, log);
+        await b.Bot.ReplaceSearchAsync(source, destination, target, c.Page, log);
     };
 }

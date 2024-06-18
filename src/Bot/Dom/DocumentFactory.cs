@@ -10,6 +10,8 @@ public class DocumentFactory
     {
         var precess = new NamumarkProcess(content);
         var astTree = precess.ParseAsToken();
+        var lineProcess = new LineProcessor();
+        lineProcess.Process(content, astTree);
 
         var parser = new Parser();
         parser._raw = content;

@@ -186,14 +186,18 @@ internal class StringTape
     }
 }
 
-internal class BriefStringTape
+
+internal class NewStringTape
 {
     public readonly string Raw;
     public int Start;
     public int Index { get; set; }
     public readonly int EndIndex;
+    public event Func<NewStringTape, bool>? OnMoveNext;
 
-    public BriefStringTape(string raw, int index, int endIndex)
+    public NewStringTape(string raw) : this(raw, 0, raw.Length) { }
+
+    public NewStringTape(string raw, int index, int endIndex)
     {
         Raw = raw;
         Index = index;
@@ -202,21 +206,48 @@ internal class BriefStringTape
 
     public char Current => Raw[Index];
 
-    public bool TryProgress(int size = 1)
+    public bool MoveNext(int size = 1)
     {
         if (Index >= EndIndex)
-            Index += size;
+            return false;
+        Index += size;
+        Index = Math.Min(Index, EndIndex);
+        return OnMoveNext?.Invoke(this) != false;
+    }
+
+    public bool MoveNextForStart(int size = 1)
+    {
+        if (Start >= EndIndex)
+            return false;
+        Start += size;
+        Start = Math.Min(Start, EndIndex);
+        Index = Math.Max(Start, Index);
         return true;
+    }
+
+    internal char? Next()
+    {
+        return EndIndex < Index + 1 ? Raw[Index + 1] : null;
     }
 }
 
 
 internal static class StringTapeExtensions
 {
-    public static bool Search(this BriefStringTape self, string str) => self.Search(self.Index, str);
-    public static bool Search(this BriefStringTape self, char c) => self.Search(self.Index, c);
-    public static bool Search(this BriefStringTape self, int index, char c) => 0 <= index && index < self.Raw.Length && self.Raw[index] == c;
-    public static bool Search(this BriefStringTape self, int index, string str) => self.Raw.AsSpan(index).StartsWith(str);
+    public static bool StartsWith(this NewStringTape self, string value)
+    {
+        if (self.Raw.AsSpan(self.Index).StartsWith(value))
+        {
+            self.MoveNext(value.Length);
+            return true;
+        }
+        return false;
+    }
+
+    public static bool Search(this NewStringTape self, string str) => self.Search(self.Index, str);
+    public static bool Search(this NewStringTape self, char c) => self.Search(self.Index, c);
+    public static bool Search(this NewStringTape self, int index, char c) => 0 <= index && index < self.Raw.Length && self.Raw[index] == c;
+    public static bool Search(this NewStringTape self, int index, string str) => self.Raw.AsSpan(index).StartsWith(str);
 
     /// <summary>
     /// 해당 문자를 찾을 때까지 이동합니다.
@@ -224,7 +255,7 @@ internal static class StringTapeExtensions
     /// <param name="self"></param>
     /// <param name="c"></param>
     /// <returns>찾지 못하면 false를 반환합니다.</returns>
-    public static bool ConsumeTo(this BriefStringTape self, char c)
+    public static bool ConsumeTo(this NewStringTape self, char c)
     {
         var index = self.Index;
         while (index < self.EndIndex)
@@ -234,6 +265,30 @@ internal static class StringTapeExtensions
                 return true;
             }
         return false;
+    }
+
+    public static ASTNode ToASTNode(this NewStringTape tape, params ASTNode[] children)
+    {
+        return tape.ToASTNode(ASTNodeType.None, children.ToList());
+    }
+
+    /// <summary>
+    /// 테이프의 Index와 Start 값으로 추상 트리 노드를 생성합니다.
+    /// </summary>
+    /// <param name="tape"></param>
+    /// <param name="type"></param>
+    /// <param name="children"></param>
+    /// <returns></returns>
+    public static ASTNode ToASTNode(this NewStringTape tape, ASTNodeType type, params ASTNode[] children)
+    {
+        return tape.ToASTNode(type, children.ToList());
+    }
+
+    public static ASTNode ToASTNode(this NewStringTape tape, ASTNodeType type, List<ASTNode> children)
+    {
+        //if (tape.Parent != null)
+        //    tape.UpdateToParent();
+        return new(type, tape.Start, tape.Index - tape.Start, children);
     }
 
 

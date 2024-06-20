@@ -65,7 +65,7 @@ internal class BraceProcessor : Processor
                 innerTape.UpdateToParent();
                 state.MainTape.Progress(3);
                 return state.MainTape.ToASTNode(ASTNodeType.MarkupBracket,
-                    tag.ToASTNode(), markup);
+                    markup, tag.ToASTNode());
             }
         }
 

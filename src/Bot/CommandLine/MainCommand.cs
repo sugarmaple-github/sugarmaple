@@ -1,4 +1,5 @@
 ﻿namespace Sugarmaple.Bot.CommandLine;
+
 using System.CommandLine;
 using System.Text;
 
@@ -13,11 +14,13 @@ public class MainCommand : RootCommand
         var bot = ConsoleBotCreator.Create("https://namu.wiki", wikiUri, apiToken, userName, wikiNamespaces);
         DefaultBot.Handler = bot;
         Add(new OrderCommand());
+        Test(bot);
     }
 
-    private static void Test(SeedBot bot)
+    private static void Test(ConsoleBotHandler bot)
     {
-        //bot.ReplaceSearch();
+        var res = FileUtil.Read("text.txt").ReplaceLineEndings("\n");//.ReplaceSearch();
+        TheSeed.Namumark.DocumentFactory.Default.Parse(res);
     }
 }
 

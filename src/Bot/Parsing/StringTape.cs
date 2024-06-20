@@ -190,12 +190,19 @@ internal class StringTape
 internal class NewStringTape
 {
     public readonly string Raw;
-    public int Start;
+    public int Start = -1;
     public int Index { get; set; }
     public readonly int EndIndex;
-    public event Func<NewStringTape, bool>? OnMoveNext;
 
-    public NewStringTape(string raw) : this(raw, 0, raw.Length) { }
+    private readonly FuncExecutor<NewStringTape> _funcs = new();
+    public event Func<NewStringTape, bool> MovedNext
+    {
+        add => _funcs.Add(value);
+        remove => _funcs.Remove(value);
+    }
+    public event Action<NewStringTape>? Ended;
+
+    public NewStringTape(string raw) : this(raw, -1, raw.Length) { }
 
     public NewStringTape(string raw, int index, int endIndex)
     {
@@ -206,13 +213,16 @@ internal class NewStringTape
 
     public char Current => Raw[Index];
 
-    public bool MoveNext(int size = 1)
+    public bool MoveNext()
     {
         if (Index >= EndIndex)
+        {
+            Ended?.Invoke(this);
             return false;
-        Index += size;
+        }
+        Index++;
         Index = Math.Min(Index, EndIndex);
-        return OnMoveNext?.Invoke(this) != false;
+        return _funcs.Invoke(this);
     }
 
     public bool MoveNextForStart(int size = 1)
@@ -222,23 +232,66 @@ internal class NewStringTape
         Start += size;
         Start = Math.Min(Start, EndIndex);
         Index = Math.Max(Start, Index);
-        return true;
+        var ret = _funcs.Invoke(this);
+        Start = Index;
+        return ret;
     }
 
     internal char? Next()
     {
         return EndIndex < Index + 1 ? Raw[Index + 1] : null;
     }
+
+    public override string ToString()
+    {
+        return Raw[Start..Index];
+    }
+
+    public string Front => Raw[Index..EndIndex];
 }
 
 
 internal static class StringTapeExtensions
 {
-    public static bool StartsWith(this NewStringTape self, string value)
+    /// <summary>
+    /// Index 위치에 value 값이 있다면 true를 반환하고 value의 길이만큼 진행합니다.
+    /// </summary>
+    /// <param name="self"></param>
+    /// <param name="value"></param>
+    /// <returns></returns>
+    public static bool Consume(this NewStringTape self, string value)
     {
         if (self.Raw.AsSpan(self.Index).StartsWith(value))
         {
-            self.MoveNext(value.Length);
+            self.Index += value.Length;
+            return true;
+        }
+        return false;
+    }
+
+    public static bool Consume(this NewStringTape self, char value)
+    {
+        if (self.Raw.AsSpan(self.Index)[0] == value)
+        {
+            self.Index++;
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// 개행 혹은 문자열 끝 이전에 value 값이 있다면 value의 길이만큼 진행합니다.
+    /// </summary>
+    /// <param name="self"></param>
+    /// <param name="value"></param>
+    /// <returns></returns>
+    public static bool ConsumeBeforeNewline(this NewStringTape self, string value)
+    {
+        var newIndex = self.Index + value.Length;
+        if (self.Raw.AsSpan(self.Index).StartsWith(value) && (newIndex >= self.EndIndex || self.Raw[newIndex] == '\n'))
+        {
+            self.Index = newIndex;
+            self.Consume('\n');
             return true;
         }
         return false;
@@ -248,6 +301,8 @@ internal static class StringTapeExtensions
     public static bool Search(this NewStringTape self, char c) => self.Search(self.Index, c);
     public static bool Search(this NewStringTape self, int index, char c) => 0 <= index && index < self.Raw.Length && self.Raw[index] == c;
     public static bool Search(this NewStringTape self, int index, string str) => self.Raw.AsSpan(index).StartsWith(str);
+
+
 
     /// <summary>
     /// 해당 문자를 찾을 때까지 이동합니다.
@@ -284,11 +339,26 @@ internal static class StringTapeExtensions
         return tape.ToASTNode(type, children.ToList());
     }
 
+
     public static ASTNode ToASTNode(this NewStringTape tape, ASTNodeType type, List<ASTNode> children)
     {
         //if (tape.Parent != null)
         //    tape.UpdateToParent();
         return new(type, tape.Start, tape.Index - tape.Start, children);
+    }
+
+    public static ASTNode ToASTNode(this NewStringTape tape, int start, ASTNodeType type)
+    {
+        //if (tape.Parent != null)
+        //    tape.UpdateToParent();
+        return new(type, start, tape.Index - start, new());
+    }
+
+    public static ASTNode ToASTNode(this NewStringTape tape, int start, ASTNodeType type, List<ASTNode> children)
+    {
+        //if (tape.Parent != null)
+        //    tape.UpdateToParent();
+        return new(type, start, tape.Index - start, children);
     }
 
 
@@ -314,5 +384,36 @@ internal static class StringTapeExtensions
         if (tape.Parent != null)
             tape.UpdateToParent();
         return new(type, tape.Start, tape.Index - tape.Start, children);
+    }
+}
+
+public class FuncExecutor<T>
+{
+    private readonly List<Func<T, bool>> _funcs = new List<Func<T, bool>>();
+
+    // 함수 추가 메서드
+    public void Add(Func<T, bool> func)
+    {
+        _funcs.Add(func);
+    }
+
+    public void Remove(Func<T, bool> func)
+    {
+        if (_funcs[^1] == func)
+            _funcs.RemoveAt(_funcs.Count - 1);
+        _funcs.Remove(func);
+    }
+
+    // 함수를 순차적으로 실행하여 true가 반환되면 멈춤
+    public bool Invoke(T input)
+    {
+        foreach (var func in _funcs)
+        {
+            if (!func(input))
+            {
+                return false;
+            }
+        }
+        return true;
     }
 }

@@ -108,8 +108,8 @@ internal class Parser
     private WikiBracket ParseMarkupBracket(ASTNode token)
         => new()
         {
-            Tag = ParseChildAsString(token, 0),
-            Children = ParseChildAsElementList(token, 1)
+            Children = ParseChildAsElementList(token, 0),
+            Tag = ParseChildAsString(token, 1),
         };
 
     public Document ParseDocument(ASTNode node)
@@ -314,4 +314,5 @@ public enum ASTNodeType
     Italic,
     MarkupBracket,
     Quote,
+    TableRow,
 }

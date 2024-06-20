@@ -5,6 +5,7 @@ using System.Text.RegularExpressions;
 internal class LineProcessingPos
 {
     public ASTNode Parent;
+    public bool IsInNewline;
 }
 
 internal class LineProcessor
@@ -74,7 +75,18 @@ internal class LineProcessor
         //한 칸 씩 진행하면서 개행을 만날 때마다 뭔가 처리해줘야 함.
         while (tape.MoveNextForStart())
         {
-            if (tape.Index == 0 || (tape.Current == '\n' && tape.MoveNext()))
+            if (tape.Current == '\n')
+            {
+                pos.IsInNewline = true;
+                if (tape.MoveNext())
+                {
+                    OnLineStart(tape, pos);
+                    continue;
+                }
+                else return;
+            }
+
+            if (tape.Index == 0 || pos.IsInNewline)
             {
                 OnLineStart(tape, pos);
             }
@@ -83,16 +95,18 @@ internal class LineProcessor
 
     private void OnLineStart(NewStringTape tape, LineProcessingPos pos)
     {
+        pos.IsInNewline = true;
         var parent = pos.Parent;
         if (_processors.TryProgress(tape, new(this, pos), out var node))
         {
-            var oldChildren = parent.Children;
-            parent.Children =
+            var oldChildren = parent.Children;//TODO: relogic
+            pos.Parent.Children =
                 oldChildren.TakeWhile(o => o.End <= node.Index)
                 .Append(node)
                 .Concat(oldChildren.SkipWhile(o => node.End > o.Index))
                 .ToList();
         }
+        pos.IsInNewline = false;
     }
 
     bool CanGetChildren(ASTNodeType nodeType) => nodeType is
@@ -113,7 +127,7 @@ internal class LineProcessor
 
 internal record LineContext(
     LineProcessor Processor,
-    LineProcessingPos Parent)
+    LineProcessingPos Pos)
 ;
 
 internal class QuoteProcessor : NewProcessor<LineContext>
@@ -122,12 +136,35 @@ internal class QuoteProcessor : NewProcessor<LineContext>
 
     protected override ASTNode ProcessInternal(NewStringTape tape, LineContext context)
     {
-        tape.MovedNext += OnMoveNext;
-        context.Processor.Process(tape, context.Parent);
-        tape.MovedNext -= OnMoveNext;
-        return tape.ToASTNode(ASTNodeType.Quote);
+        var start = tape.Start;
+        var resolved = true;
+        tape.MovingNext += MovedNext;
+        context.Processor.Process(tape, context.Pos);
+        tape.MovingNext -= MovedNext;
+        return tape.ToASTNode(start, ASTNodeType.Quote);
 
-        static bool OnMoveNext(NewStringTape o) => !(o.Current == '\n' && o.Next() == '>');
+        bool MovedNext(NewStringTape o)
+        {
+            if (context.Pos.IsInNewline)
+            {
+                if (!resolved)
+                {
+                    if (o.Next() == '>')
+                    {
+                        resolved = true;
+                        o.Index++;
+                        return true;
+                    }
+                    else
+                        return false;
+                }
+            }
+            else
+            {
+                resolved = false;
+            }
+            return true;
+        }
     }
 }
 
@@ -172,6 +209,7 @@ internal abstract class NewProcessor<T>
     protected abstract ASTNode ProcessInternal(NewStringTape state, T context);
 }
 
+//다른 parsing layer에서 관리할 예정
 internal class TableProcessor : NewProcessor<LineContext>
 {
     public override string Open => "||";
@@ -185,7 +223,7 @@ internal class TableProcessor : NewProcessor<LineContext>
         var rows = new List<ASTNode>();
 
         state.MovedNext += MovedNext;
-        context.Processor.Process(state, context.Parent);
+        context.Processor.Process(state, context.Pos);
         state.MovedNext -= MovedNext;
         return state.ToASTNode(tableStart, ASTNodeType.Table, rows);
 

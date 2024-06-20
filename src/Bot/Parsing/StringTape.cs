@@ -194,11 +194,17 @@ internal class NewStringTape
     public int Index { get; set; }
     public readonly int EndIndex;
 
-    private readonly FuncExecutor<NewStringTape> _funcs = new();
+    private readonly FuncExecutor<NewStringTape> _movedNext = new();
     public event Func<NewStringTape, bool> MovedNext
     {
-        add => _funcs.Add(value);
-        remove => _funcs.Remove(value);
+        add => _movedNext.Add(value);
+        remove => _movedNext.Remove(value);
+    }
+    private readonly FuncExecutor<NewStringTape> _movingNext = new();
+    public event Func<NewStringTape, bool> MovingNext
+    {
+        add => _movingNext.Add(value);
+        remove => _movingNext.Remove(value);
     }
     public event Action<NewStringTape>? Ended;
 
@@ -215,6 +221,9 @@ internal class NewStringTape
 
     public bool MoveNext()
     {
+        if (!_movingNext.Invoke(this))
+            return false;
+
         if (Index >= EndIndex)
         {
             Ended?.Invoke(this);
@@ -222,17 +231,23 @@ internal class NewStringTape
         }
         Index++;
         Index = Math.Min(Index, EndIndex);
-        return _funcs.Invoke(this);
+        return _movedNext.Invoke(this);
     }
 
     public bool MoveNextForStart(int size = 1)
     {
-        if (Start >= EndIndex)
+        if (!_movingNext.Invoke(this))
             return false;
+
+        if (Start >= EndIndex)
+        {
+            Ended?.Invoke(this);
+            return false;
+        }
         Start += size;
         Start = Math.Min(Start, EndIndex);
         Index = Math.Max(Start, Index);
-        var ret = _funcs.Invoke(this);
+        var ret = _movedNext.Invoke(this);
         Start = Index;
         return ret;
     }

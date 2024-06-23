@@ -1,5 +1,6 @@
 ﻿namespace Sugarmaple.TheSeed.Namumark.Parsing;
 
+using Newtonsoft.Json.Linq;
 using Sugarmaple.TheSeed.Namumark;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
@@ -187,33 +188,43 @@ internal class StringTape
 }
 
 
-internal class NewStringTape
+internal class ASTNodeBuilder
 {
     public readonly string Raw;
-    public int Start = -1;
+    public int Start = 0;
     public int Index { get; set; }
     public readonly int EndIndex;
+    public List<ASTNode> Children { get; } = new();
 
-    private readonly FuncExecutor<NewStringTape> _movedNext = new();
-    public event Func<NewStringTape, bool> MovedNext
+    private readonly FuncExecutor<ASTNodeBuilder> _movedNext = new();
+    public event Func<ASTNodeBuilder, bool> MovedNext
     {
         add => _movedNext.Add(value);
         remove => _movedNext.Remove(value);
     }
-    private readonly FuncExecutor<NewStringTape> _movingNext = new();
-    public event Func<NewStringTape, bool> MovingNext
+    private readonly FuncExecutor<ASTNodeBuilder> _movingNext = new();
+    public event Func<ASTNodeBuilder, bool> MovingNext
     {
         add => _movingNext.Add(value);
         remove => _movingNext.Remove(value);
     }
-    public event Action<NewStringTape>? Ended;
+    public event Action<ASTNodeBuilder>? Ended;
 
-    public NewStringTape(string raw) : this(raw, -1, raw.Length) { }
+    public ASTNodeBuilder(string raw) : this(raw, -1, raw.Length) { }
 
-    public NewStringTape(string raw, int index, int endIndex)
+    public ASTNodeBuilder(string raw, int index, int endIndex)
     {
         Raw = raw;
-        Index = index;
+        Start = index;
+        Index = index - 1;
+        EndIndex = endIndex;
+    }
+
+    public ASTNodeBuilder(string raw, int start, int index, int endIndex)
+    {
+        Raw = raw;
+        Start = start;
+        Index = index - 1;
         EndIndex = endIndex;
     }
 
@@ -262,19 +273,31 @@ internal class NewStringTape
         return Raw[Start..Index];
     }
 
+    internal void Add(ASTNode node)
+    {
+        Index = Math.Max(node.End - 1, Index);
+        Children.Add(node);
+    }
+
     public string Front => Raw[Index..EndIndex];
 }
 
 
 internal static class StringTapeExtensions
 {
+    public static bool StartsWith(this ASTNodeBuilder self, string value)
+    {
+        return self.Raw.AsSpan(self.Index).StartsWith(value);
+    }
+
+
     /// <summary>
     /// Index 위치에 value 값이 있다면 true를 반환하고 value의 길이만큼 진행합니다.
     /// </summary>
     /// <param name="self"></param>
     /// <param name="value"></param>
     /// <returns></returns>
-    public static bool Consume(this NewStringTape self, string value)
+    public static bool Consume(this ASTNodeBuilder self, string value)
     {
         if (self.Raw.AsSpan(self.Index).StartsWith(value))
         {
@@ -284,7 +307,7 @@ internal static class StringTapeExtensions
         return false;
     }
 
-    public static bool Consume(this NewStringTape self, char value)
+    public static bool Consume(this ASTNodeBuilder self, char value)
     {
         if (self.Raw.AsSpan(self.Index)[0] == value)
         {
@@ -300,7 +323,7 @@ internal static class StringTapeExtensions
     /// <param name="self"></param>
     /// <param name="value"></param>
     /// <returns></returns>
-    public static bool ConsumeBeforeNewline(this NewStringTape self, string value)
+    public static bool ConsumeBeforeNewline(this ASTNodeBuilder self, string value)
     {
         var newIndex = self.Index + value.Length;
         if (self.Raw.AsSpan(self.Index).StartsWith(value) && (newIndex >= self.EndIndex || self.Raw[newIndex] == '\n'))
@@ -312,10 +335,15 @@ internal static class StringTapeExtensions
         return false;
     }
 
-    public static bool Search(this NewStringTape self, string str) => self.Search(self.Index, str);
-    public static bool Search(this NewStringTape self, char c) => self.Search(self.Index, c);
-    public static bool Search(this NewStringTape self, int index, char c) => 0 <= index && index < self.Raw.Length && self.Raw[index] == c;
-    public static bool Search(this NewStringTape self, int index, string str) => self.Raw.AsSpan(index).StartsWith(str);
+    public static ASTNodeBuilder Branch(this ASTNodeBuilder self)
+    {
+        return new(self.Raw, self.Index, self.EndIndex);
+    }
+
+    public static bool Search(this ASTNodeBuilder self, string str) => self.Search(self.Index, str);
+    public static bool Search(this ASTNodeBuilder self, char c) => self.Search(self.Index, c);
+    public static bool Search(this ASTNodeBuilder self, int index, char c) => 0 <= index && index < self.Raw.Length && self.Raw[index] == c;
+    public static bool Search(this ASTNodeBuilder self, int index, string str) => self.Raw.AsSpan(index).StartsWith(str);
 
 
 
@@ -325,7 +353,7 @@ internal static class StringTapeExtensions
     /// <param name="self"></param>
     /// <param name="c"></param>
     /// <returns>찾지 못하면 false를 반환합니다.</returns>
-    public static bool ConsumeTo(this NewStringTape self, char c)
+    public static bool ConsumeTo(this ASTNodeBuilder self, char c)
     {
         var index = self.Index;
         while (index < self.EndIndex)
@@ -337,7 +365,7 @@ internal static class StringTapeExtensions
         return false;
     }
 
-    public static ASTNode ToASTNode(this NewStringTape tape, params ASTNode[] children)
+    public static ASTNode ToASTNode(this ASTNodeBuilder tape, params ASTNode[] children)
     {
         return tape.ToASTNode(ASTNodeType.None, children.ToList());
     }
@@ -349,27 +377,27 @@ internal static class StringTapeExtensions
     /// <param name="type"></param>
     /// <param name="children"></param>
     /// <returns></returns>
-    public static ASTNode ToASTNode(this NewStringTape tape, ASTNodeType type, params ASTNode[] children)
+    public static ASTNode ToASTNode(this ASTNodeBuilder tape, ASTNodeType type)
     {
-        return tape.ToASTNode(type, children.ToList());
+        return tape.ToASTNode(type, tape.Children);
     }
 
 
-    public static ASTNode ToASTNode(this NewStringTape tape, ASTNodeType type, List<ASTNode> children)
+    public static ASTNode ToASTNode(this ASTNodeBuilder tape, ASTNodeType type, List<ASTNode> children)
     {
         //if (tape.Parent != null)
         //    tape.UpdateToParent();
         return new(type, tape.Start, tape.Index - tape.Start, children);
     }
 
-    public static ASTNode ToASTNode(this NewStringTape tape, int start, ASTNodeType type)
+    public static ASTNode ToASTNode(this ASTNodeBuilder tape, int start, ASTNodeType type)
     {
         //if (tape.Parent != null)
         //    tape.UpdateToParent();
-        return new(type, start, tape.Index - start, new());
+        return new(type, start, tape.Index - start, tape.Children);
     }
 
-    public static ASTNode ToASTNode(this NewStringTape tape, int start, ASTNodeType type, List<ASTNode> children)
+    public static ASTNode ToASTNode(this ASTNodeBuilder tape, int start, ASTNodeType type, List<ASTNode> children)
     {
         //if (tape.Parent != null)
         //    tape.UpdateToParent();

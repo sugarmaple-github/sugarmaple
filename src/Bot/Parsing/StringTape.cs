@@ -270,7 +270,7 @@ internal class ASTNodeBuilder
 
     public override string ToString()
     {
-        return Raw[Start..Index];
+        return $"current: {Current}, contains: {Raw[Start..Index]}, front: {Front}";
     }
 
     internal void Add(ASTNode node)

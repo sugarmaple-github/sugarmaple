@@ -315,4 +315,5 @@ public enum ASTNodeType
     MarkupBracket,
     Quote,
     TableRow,
+    Div,
 }

@@ -62,46 +62,79 @@ internal class LineProcessor
     }
 
     /// <summary>
-    /// 테이프와 자식 리스트를 받아서 개행 관련 문법이 적용된 새로운 자식 리스트를 반환합니다.
+    /// 자식리스트를 받아 빌더를 진행시킵니다.
     /// </summary>
     /// <param name="builder"></param>
-    /// <param name="childList">이 리스트는 불변합니다.</param>
+    /// <param name="children">이 리스트는 불변합니다.</param>
     /// <param name="prefixes">요구 접두사. 개행 이후 해당 접두사가 없다면 즉시 종료됩니다.</param>
     /// <param name="turnBackIndex">반환 예정 위치입니다. 이 인덱스부터 끝까지 부모가 재수령해야 합니다.</param>
     /// <returns>개정된 리스트입니다.</returns>
-    private void ReviseChildList(ASTNodeBuilder builder, IReadOnlyList<ASTNode> childList, IEnumerable<char> prefixes, out int turnBackIndex)
+    private void ReviseChildList(ASTNodeBuilder builder, IReadOnlyList<ASTNode> children, IEnumerable<char> prefixes, out int turnBackIndex)
     {
         var nextIndex = 0;
+        var isNewLine = true;
+
+        var divStart = builder.Start;
+        var brStart = builder.Start;
+        var divChildren = new List<ASTNode>();
+        var divMade = false;
+
         if (builder.MoveNext())
         {
-            CheckPrefix(CheckPrefixAndProgressFirst);
+            var node = CheckPrefixAndProgress(builder.Branch(), children.Skip(nextIndex), prefixes, out var embracedCount, out var failed);
+            if (node.IsValid)
+            {
+                builder.Add(node);
+                nextIndex += embracedCount;
+            }
+
             do
             {
-                EmbraceSibling();
-                //테이프 처음이라면, 이거나 개행 위치라면.
-                if (builder.Current == '\n')
-                //현재 접두사 검사 없이 추가 문법 검사
+                TryEmbraceSibling();
+
+                if (isNewLine)
                 {
-                    if (!CheckPrefix(CheckPrefixAndProgress))
+                    node = CheckPrefixAndProgress(builder.Branch(), children.Skip(nextIndex), prefixes, out embracedCount, out failed);
+                    if (failed)
+                    {
+                        builder.Add(new(ASTNodeType.Div, divStart, builder.Index - divStart, divChildren));
                         break;
+                    }
+
+                    //다른 문법이 성립되었다면,
+                    if (node.IsValid)
+                    {
+                        builder.Add(node);
+                        nextIndex += embracedCount;
+                    }
+
+                }
+
+                if (isNewLine = builder.Current == '\n')
+                {
+                    if (divMade)
+                        divChildren.Add(new(ASTNodeType.Br, brStart, builder.Index - brStart));
+                    brStart = builder.Index;
+                    divMade = true;
                 }
             } while (builder.MoveNext());
         }
+
         turnBackIndex = nextIndex;
 
-        void EmbraceSibling()
+        void TryEmbraceSibling()
         {
             //다음 형제 노드의 인덱스에 접촉하면
-            if (nextIndex < childList.Count && builder.Index >= childList[nextIndex].Index)
+            if (nextIndex < children.Count && builder.Index >= children[nextIndex].Index)
             {
                 //그 형제를 추가하고,
-                builder.Add(childList[nextIndex++]);
+                builder.Add(children[nextIndex++]);
             }
         }
 
         bool CheckPrefix(PrefixChecker checker)
         {
-            var node = checker(builder.Branch(), childList.Skip(nextIndex), prefixes, out var addingIdx);
+            var node = checker(builder, children.Skip(nextIndex), prefixes, out var addingIdx);
             if (node.IsValid)
             {
                 builder.Add(node);
@@ -112,33 +145,29 @@ internal class LineProcessor
     }
     private delegate ASTNode PrefixChecker(ASTNodeBuilder tape, IEnumerable<ASTNode> children, IEnumerable<char> prefixes, out int turnBackIndex);
 
-    private ASTNode CheckPrefixAndProgressFirst(ASTNodeBuilder tape, IEnumerable<ASTNode> children, IEnumerable<char> prefixes, out int turnBackIndex)
+    //private ASTNode CheckPrefixAndProgressFirst(ASTNodeBuilder tape, IEnumerable<ASTNode> children, IEnumerable<char> prefixes, out int turnBackIndex)
+    //{
+    //    tape.MoveNext();
+    //    turnBackIndex = 0;
+    //    var start = tape.Index;
+    //    foreach ((var open, var prefix, var mediator) in _processors)
+    //    {
+    //        if (tape.Consume(open))
+    //        {
+    //            return mediator(tape.Raw, start, tape.Index, tape.EndIndex,
+    //                children, prefixes, this, out turnBackIndex);
+    //        }
+    //    }
+    //    return default;
+    //}
+
+    private ASTNode CheckPrefixAndProgress(ASTNodeBuilder tape, IEnumerable<ASTNode> children, IEnumerable<char> prefixes, out int turnBackIndex, out bool failed)
     {
         tape.MoveNext();
         turnBackIndex = 0;
-        var start = tape.Index;
-        foreach ((var open, var prefix, var mediator) in _processors)
-        {
-            if (tape.Consume(open))
-            {
-                return mediator(tape.Raw, start, tape.Index, tape.EndIndex,
-                    children, prefixes, this, out turnBackIndex);
-            }
-        }
-        return default;
-    }
-
-    private ASTNode CheckPrefixAndProgress(ASTNodeBuilder tape, IEnumerable<ASTNode> children, IEnumerable<char> prefixes, out int turnBackIndex)
-    {
-        tape.MoveNext();
-        turnBackIndex = 0;
-        if (!tape.MoveNext())//개행 제거
-        {
-            return tape.ToASTNode(ASTNodeType.Br); //마지막에 위치한 개행일 경우.
-        }
-
         var start = tape.Index;
         var prefixEnumerator = prefixes.GetEnumerator();
+        failed = true;
     loop:
         foreach ((var open, var prefix, var mediator) in _processors)
         {
@@ -150,13 +179,18 @@ internal class LineProcessor
                     if (prefixEnumerator.Current == prefix)
                         goto loop;
                     else
-                        //아니라면 false 반환.
+                        //아니라면 실패
                         return default;
+                //중간 처리기 가동.
+                failed = false;
                 return mediator(tape.Raw, start, tape.Index, tape.EndIndex,
                     children, prefixes, this, out turnBackIndex);
             }
         }
-        return prefixEnumerator.MoveNext() ? default : tape.ToASTNode(ASTNodeType.Br);
+        failed = prefixEnumerator.MoveNext();
+        //최초의 개행은 div로
+        //이후의 개행은 br로
+        return default;
     }
 
     /// <summary>

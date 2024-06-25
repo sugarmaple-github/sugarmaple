@@ -275,7 +275,7 @@ internal class ASTNodeBuilder
 
     internal void Add(ASTNode node)
     {
-        Index = Math.Max(node.End - 1, Index);
+        Index = Math.Max(node.End, Index);
         Children.Add(node);
     }
 

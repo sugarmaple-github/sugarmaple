@@ -72,54 +72,42 @@ internal class LineProcessor
     private void ReviseChildList(ASTNodeBuilder builder, IReadOnlyList<ASTNode> children, IEnumerable<char> prefixes, out int turnBackIndex)
     {
         var nextIndex = 0;
-        var isNewLine = true;
+        var isNewLine = false;
 
-        var divStart = builder.Start;
-        var brStart = builder.Start;
+        var divStart = builder.Index + 1;
+        var brStart = builder.Index + 1;
         var divChildren = new List<ASTNode>();
         var divMade = false;
-
-        if (builder.MoveNext())
+        while (builder.MoveNext())
         {
-            var node = CheckPrefixAndProgress(builder.Branch(), children.Skip(nextIndex), prefixes, out var embracedCount, out var failed);
-            if (node.IsValid)
+            TryEmbraceSibling();
+
+            if (isNewLine)
             {
-                builder.Add(node);
-                nextIndex += embracedCount;
+                var node = CheckPrefixAndProgress(builder, children.Skip(nextIndex), prefixes, out var embracedCount, out var failed);
+                if (failed)
+                {
+                    builder.Add(new(ASTNodeType.Div, divStart, builder.Index - divStart, divChildren));
+                    break;
+                }
+
+                //다른 문법이 성립되었다면,
+                if (node.IsValid)
+                {
+                    builder.Add(node);
+                    nextIndex += embracedCount;
+                }
+
             }
 
-            do
+            if (isNewLine = builder.Current == '\n')
             {
-                TryEmbraceSibling();
-
-                if (isNewLine)
-                {
-                    node = CheckPrefixAndProgress(builder.Branch(), children.Skip(nextIndex), prefixes, out embracedCount, out failed);
-                    if (failed)
-                    {
-                        builder.Add(new(ASTNodeType.Div, divStart, builder.Index - divStart, divChildren));
-                        break;
-                    }
-
-                    //다른 문법이 성립되었다면,
-                    if (node.IsValid)
-                    {
-                        builder.Add(node);
-                        nextIndex += embracedCount;
-                    }
-
-                }
-
-                if (isNewLine = builder.Current == '\n')
-                {
-                    if (divMade)
-                        divChildren.Add(new(ASTNodeType.Br, brStart, builder.Index - brStart));
-                    brStart = builder.Index;
-                    divMade = true;
-                }
-            } while (builder.MoveNext());
+                if (divMade)
+                    divChildren.Add(new(ASTNodeType.Br, brStart, builder.Index - brStart));
+                brStart = builder.Index;
+                divMade = true;
+            }
         }
-
         turnBackIndex = nextIndex;
 
         void TryEmbraceSibling()
@@ -163,7 +151,6 @@ internal class LineProcessor
 
     private ASTNode CheckPrefixAndProgress(ASTNodeBuilder tape, IEnumerable<ASTNode> children, IEnumerable<char> prefixes, out int turnBackIndex, out bool failed)
     {
-        tape.MoveNext();
         turnBackIndex = 0;
         var start = tape.Index;
         var prefixEnumerator = prefixes.GetEnumerator();

@@ -8,17 +8,17 @@ internal class LineProcessingPos
     public bool IsInNewline;
 }
 
-internal delegate ASTNode Mediater(string raw, int start, int index, int end, IEnumerable<ASTNode> children, IEnumerable<char> prefixes, LineProcessor processor, out int turnBackIndex);
+internal delegate ASTNode Mediater(ASTNodeBuilder builder, int start, IEnumerable<ASTNode> children, IEnumerable<char> prefixes, LineProcessor processor, out int turnBackIndex, out int resolvedPrefix);
 
 internal class LineProcessor
 {
     //private readonly ProcessorCollector<LineContext> _processors = new(new QuoteProcessor(), new TableProcessor());
     private readonly List<(string, char, Mediater)> _processors = new() { (">", '>', QuoteMediator) };
 
-    private static ASTNode QuoteMediator(string raw, int start, int index, int end, IEnumerable<ASTNode> children, IEnumerable<char> prefixes, LineProcessor processor, out int turnBackIndex)
+    private static ASTNode QuoteMediator(ASTNodeBuilder builder, int start, IEnumerable<ASTNode> children, IEnumerable<char> prefixes, LineProcessor processor, out int turnBackIndex, out int resolvedPrefix)
     {
-        var builder = processor.ReviseChildList(raw, start, index, end, children.ToList(), prefixes.Append('>'), out turnBackIndex);
-        return builder.ToASTNode(ASTNodeType.Quote);
+        processor.ReviseChildList(builder, children.ToList(), prefixes.Append('>'), out turnBackIndex, out resolvedPrefix);
+        return builder.ToASTNode(start, ASTNodeType.Quote);
     }
 
     public void Process(string str, ASTNode rootNode)
@@ -57,7 +57,8 @@ internal class LineProcessor
     private ASTNodeBuilder ReviseChildList(string raw, int start, int index, int end, IReadOnlyList<ASTNode> childList, IEnumerable<char> prefixes, out int turnBackIndex)
     {
         var ret = new ASTNodeBuilder(raw, start, index, end);
-        ReviseChildList(ret, childList, prefixes, out turnBackIndex);
+        ret.MoveNext();
+        ReviseChildList(ret, childList, prefixes, out turnBackIndex, out _);
         return ret;
     }
 
@@ -69,22 +70,30 @@ internal class LineProcessor
     /// <param name="prefixes">요구 접두사. 개행 이후 해당 접두사가 없다면 즉시 종료됩니다.</param>
     /// <param name="turnBackIndex">반환 예정 위치입니다. 이 인덱스부터 끝까지 부모가 재수령해야 합니다.</param>
     /// <returns>개정된 리스트입니다.</returns>
-    private void ReviseChildList(ASTNodeBuilder builder, IReadOnlyList<ASTNode> children, IEnumerable<char> prefixes, out int turnBackIndex)
+    private void ReviseChildList(ASTNodeBuilder builder, IReadOnlyList<ASTNode> children, IEnumerable<char> prefixes, out int turnBackIndex, out int resolvedPrefix)
     {
         var nextIndex = 0;
         var isNewLine = false;
 
-        var divStart = builder.Index + 1;
-        var brStart = builder.Index + 1;
+        var divStart = builder.Index;
+        var brStart = builder.Index;
         var divChildren = new List<ASTNode>();
         var divMade = false;
-        while (builder.MoveNext())
+
+        var node = CheckPrefixAndProgress(builder, children.Skip(nextIndex), Enumerable.Empty<char>(), out var embracedCount, out _, out resolvedPrefix);
+        if (node.IsValid)
+        {
+            builder.Add(node);
+            nextIndex += embracedCount;
+        }
+
+        do
         {
             TryEmbraceSibling();
 
             if (isNewLine)
             {
-                var node = CheckPrefixAndProgress(builder, children.Skip(nextIndex), prefixes, out var embracedCount, out var failed);
+                node = CheckPrefixAndProgress(builder, children.Skip(nextIndex), prefixes.Skip(resolvedPrefix), out embracedCount, out var failed, out resolvedPrefix);
                 if (failed)
                 {
                     builder.Add(new(ASTNodeType.Div, divStart, builder.Index - divStart, divChildren));
@@ -94,10 +103,12 @@ internal class LineProcessor
                 //다른 문법이 성립되었다면,
                 if (node.IsValid)
                 {
+                    builder.Add(new(ASTNodeType.Div, divStart, node.Index - divStart, divChildren));
                     builder.Add(node);
                     nextIndex += embracedCount;
+                    divStart = builder.Index;
+                    divMade = false;
                 }
-
             }
 
             if (isNewLine = builder.Current == '\n')
@@ -107,7 +118,7 @@ internal class LineProcessor
                 brStart = builder.Index;
                 divMade = true;
             }
-        }
+        } while (builder.MoveNext());
         turnBackIndex = nextIndex;
 
         void TryEmbraceSibling()
@@ -149,12 +160,12 @@ internal class LineProcessor
     //    return default;
     //}
 
-    private ASTNode CheckPrefixAndProgress(ASTNodeBuilder tape, IEnumerable<ASTNode> children, IEnumerable<char> prefixes, out int turnBackIndex, out bool failed)
+    private ASTNode CheckPrefixAndProgress(ASTNodeBuilder tape, IEnumerable<ASTNode> children, IEnumerable<char> prefixes, out int turnBackIndex, out bool failed, out int resolvedPrefix)
     {
         turnBackIndex = 0;
         var start = tape.Index;
         var prefixEnumerator = prefixes.GetEnumerator();
-        failed = true;
+        failed = true; resolvedPrefix = 0;
     loop:
         foreach ((var open, var prefix, var mediator) in _processors)
         {
@@ -170,8 +181,8 @@ internal class LineProcessor
                         return default;
                 //중간 처리기 가동.
                 failed = false;
-                return mediator(tape.Raw, start, tape.Index, tape.EndIndex,
-                    children, prefixes, this, out turnBackIndex);
+                return mediator(tape, start,
+                    children, prefixes, this, out turnBackIndex, out resolvedPrefix);
             }
         }
         failed = prefixEnumerator.MoveNext();

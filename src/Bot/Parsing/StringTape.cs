@@ -392,9 +392,11 @@ internal static class StringTapeExtensions
 
     public static ASTNode ToASTNode(this ASTNodeBuilder tape, int start, ASTNodeType type)
     {
+        var node = new ASTNode(type, start, tape.Index - start, tape.Children.ToList());
+        tape.Children.Clear();
         //if (tape.Parent != null)
         //    tape.UpdateToParent();
-        return new(type, start, tape.Index - start, tape.Children);
+        return node;
     }
 
     public static ASTNode ToASTNode(this ASTNodeBuilder tape, int start, ASTNodeType type, List<ASTNode> children)

@@ -39,8 +39,7 @@ internal record struct ASTNode : IEnumerable<ASTNode>
         this.Children = Children;
     }
 
-    public override string ToString() => $"({Type}), i:{Index}, l:{Length}, {
-        (NamumarkProcess._recentOne != null ? $"res:\"{NamumarkProcess._recentOne.Substring(Index, Length)}\""  :"")}";
+    public override string ToString() => $"({Type}), i:{Index}, l:{Length}, {(NamumarkProcess._recentOne != null ? $"res:\"{NamumarkProcess._recentOne.Substring(Index, Length)}\"" : "")}";
 
     public IEnumerator<ASTNode> GetEnumerator()
     {

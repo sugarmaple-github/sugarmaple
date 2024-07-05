@@ -26,7 +26,8 @@ public static class OrderCreator
                 from: s.From ?? from,
                 sourceAnchor: sourceAnchor,
                 destAnchor: destAnchor,
-                log: log, predicate: context ? OnCheck : () => true);
+                predicate: context ? OnCheck : () => true,
+                logMaker: (source, destination) => $"[자동] 역링크 정리 \"{source}\" -> \"{destination}\" (사유: {log})");
             bool OnCheck()
             {
                 if (searchRoutine == null)

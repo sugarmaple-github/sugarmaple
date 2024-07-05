@@ -69,9 +69,9 @@ public static class SeedBotExtensions
         string source, string destination,
         string? destinationDisplay = null, string from = "",
         string? sourceAnchor = null, string? destAnchor = null,
-        string? log = null, Func<bool>? predicate = null)
+        Func<bool>? predicate = null, Func<string, string, string> logMaker = null)
     {
-        var fullLog = _bot.LogMakerDict[nameof(ReplaceBacklinkAsync)](source, destination, log);
+        var fullLog = logMaker?.Invoke(source, destination);
         if (IsFrame(source) && !IsFrame(destination))
         {
             await _bot.ReplaceBacklinkFrameToNotFrame(source, destination, destinationDisplay, from, sourceAnchor, destAnchor, fullLog);

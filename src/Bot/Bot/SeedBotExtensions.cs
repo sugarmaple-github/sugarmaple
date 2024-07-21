@@ -50,7 +50,7 @@ public static class SeedBotExtensions
     public static IAsyncEnumerable<T> BacklinkReferersAsync<T>(this SeedBot _bot, string document, NamespaceMask @namespace, string fromValue, string log) where T : IReferer
         => _bot.BacklinkBodiesAsync(document, @namespace, fromValue, log).SelectMany(o => o.QuerySelectorAll<T>("*").ToAsyncEnumerable()).Where(o =>
         {
-            NamuNormalizer.Default.Normalize(o);
+            //NamuNormalizer.Default.Normalize(o);
             return o.Reference == document;
         });
 

@@ -36,7 +36,8 @@ public class OrderCommand : Command
         var taskNameArgument = new Argument<string>();
         executeCommand.Add(taskNameArgument);
 
-        var checkingOption = new Argument<bool>(() => true);
+        var checkingOption = new System.CommandLine.Option<bool>("--check", () => true);
+        executeCommand.Add(checkingOption);
 
         executeCommand.SetHandler(async (task, checking) => await Progress(task, DefaultBot.Handler, checking), taskNameArgument, checkingOption);
 

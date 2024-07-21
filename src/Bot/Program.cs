@@ -12,7 +12,7 @@ while (true)
     var inputChar = input![0];
     if (inputChar is 'C' or 'c')
     {
-        input = $"order execute {taskFile}";
+        input = $"order execute {taskFile} --check";
     }
     else if (inputChar is 'R' or 'r')
     {

@@ -13,9 +13,10 @@ using System.Globalization;
 public class SeedCrawler
 {
     public string BaseAddress { get; set; }
-    private readonly ChromeDriver _driver;
+    private ChromeDriver _driver;
 
     static readonly ChromeDriverService _service;
+    private readonly ChromeOptions _chromeOptions = new();
 
     public Action<int>? OnSearch { get; }
 
@@ -28,13 +29,14 @@ public class SeedCrawler
     public SeedCrawler(string baseAddress, bool hide = true)
     {
         BaseAddress = baseAddress.TrimEnd('/') + '/';
-        var chromeOptions = new ChromeOptions();
         if (hide)
         {
-            chromeOptions.AddArguments("headless");
+            _chromeOptions.AddArguments("headless");
         }
-        _driver = new(_service, chromeOptions);
+        _driver = CreateDriver();
     }
+
+    public ChromeDriver CreateDriver() => new(_service, _chromeOptions);
 
     public RecentChanges GetRecentChanges(LogType logType = LogType.All)
     {
@@ -220,7 +222,18 @@ public class SeedCrawler
 
     private void GoToUrl(string path)
     {
-        _driver.Navigate().GoToUrl(Combine(BaseAddress, path));
+        var url = Combine(BaseAddress, path);
+        try
+        {
+            _driver.Navigate().GoToUrl(url);
+        }
+        catch (WebDriverException)
+        {
+            Console.WriteLine("WebDriverException encountered. Reinitializing WebDriver...");
+            _driver.Quit();
+            _driver = CreateDriver();
+            _driver.Navigate().GoToUrl(url);
+        }
     }
 
     public (int Count, IEnumerable<string> Titles) Search(string target, string q, string @namespace, int page = 1)

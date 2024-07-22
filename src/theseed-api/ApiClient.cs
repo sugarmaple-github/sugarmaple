@@ -122,10 +122,10 @@ public class SeedApiClient : ISeedApiClient
                 OnPostSuccessfully?.Invoke(new(document, rev));
                 return new(rev);
             }
-            OnPostEditError?.Invoke(new(status, true));
+            OnPostEditError?.Invoke(new(status, true, document));
             return null;
         }
-        OnPostEditError?.Invoke(new(output.Error, false));
+        OnPostEditError?.Invoke(new(output.Error, false, document));
         return null;
     }
 
@@ -295,11 +295,13 @@ public class EditPostError
 {
     public readonly string Msg;
     public readonly bool IsJson;
+    public readonly string Document;
 
-    public EditPostError(string msg, bool isJson)
+    public EditPostError(string msg, bool isJson, string document)
     {
         Msg = msg;
         IsJson = isJson;
+        Document = document;
     }
 
     public bool HasSameDocumentContent => Msg == "문서 내용이 같습니다.";

@@ -14,10 +14,17 @@ public class OrderProgress
 {
     public int Label { get; set; }
     public OrderContext Context { get; set; }
-    public OrderResult Result { get; set; }
 }
-public record struct OrderDenied(HashSet<string> Acl);
-public record struct OrderResult(OrderDenied Denied);
+public class OrderDenied
+{
+    public HashSet<string> Acl { get; } = new();
+    public HashSet<string> Bug { get; } = new();
+}
+public class OrderResult
+{
+    public List<EditPostResult> Accepted { get; } = new();
+    public OrderDenied Denied { get; } = new();
+}
 [JsonObject]
 public struct OrderSaved
 {
@@ -25,6 +32,8 @@ public struct OrderSaved
     public string Script { get; set; }
     [JsonProperty]
     public OrderProgress Progress { get; set; }
+    [JsonProperty]
+    public List<OrderResult> Result { get; set; }
 }
 
 public class OrderStarter
@@ -56,12 +65,13 @@ public class OrderStarter
     {
         var insts = order.Instructions;
         var progress = saved.Progress;
-        var result = progress.Result;
+        var results = saved.Result;
         var context = progress.Context;
 
         var report = new List<OrderResult>();
         for (int i = start; i < insts.Length; i++)
         {
+            var result = results[i];
             bot.OnLackOfPermission +=
             o =>
             {
@@ -73,14 +83,24 @@ public class OrderStarter
                     context.From = document;
                     WriteJson(progressStream, saved);
                 };
+            bot.OnPostSuccessfully += result.Accepted.Add;
+            bot.OnPostEditError += o =>
+            {
+                if (o.InvalidRequestBody)
+                {
+                    result.Denied.Bug.Add(o.Document);
+                    WriteJson(progressStream, saved);
+                }
+            };
+
 
             await insts[i].Invoke(bot, context);
 
             progress.Label = i + 1;
             progress.Context = new();
-            report.Add(progress.Result);
-            progress.Result = new();
-            WriteJson(reportStream, report);
+            //report.Add();
+            //progress.Result = new();
+            //WriteJson(reportStream, saved.Result);
             bot.RemoveEvent();
         }
     }
@@ -149,4 +169,15 @@ public class BotEventHandler
         }
         remove { _bot.OnPostSuccessfully.Event -= value; }
     }
+
+    public event Action<EditPostError> OnPostEditError
+    {
+        add
+        {
+            _bot.OnPostEditError += value;
+            _removeEvent += () => _bot.OnPostEditError -= value;
+        }
+        remove { _bot.OnPostEditError -= value; }
+    }
+
 }

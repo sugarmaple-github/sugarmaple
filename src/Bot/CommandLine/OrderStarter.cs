@@ -13,7 +13,7 @@ public class OrderContext
 public class OrderProgress
 {
     public int Label { get; set; }
-    public OrderContext Context { get; set; }
+    public OrderContext Context { get; set; } = new();
 }
 public class OrderDenied
 {
@@ -33,7 +33,7 @@ public struct OrderSaved
     [JsonProperty]
     public OrderProgress Progress { get; set; }
     [JsonProperty]
-    public List<OrderResult> Result { get; set; }
+    public OrderResult Result { get; set; }
 }
 
 public class OrderStarter
@@ -56,52 +56,49 @@ public class OrderStarter
         var label = orderSaved.Progress.Label;
         var commands = FileUtil.Read(Path.Combine("orders", orderSaved.Script)).Split('\n');
         var order = CommandCompiler.Default.Build(commands);
-        return Invoke(order, label, new(bot), orderSaved, progress, result);
+        return Invoke(order, label, bot, orderSaved, progress, result);
     }
 
 
     private static JsonSerializer _serializer = new JsonSerializer() { ContractResolver = new CamelCasePropertyNamesContractResolver() };
-    public async Task Invoke(Order order, int start, BotEventHandler bot, OrderSaved saved, string progressStream, string reportStream)
+    public async Task Invoke(Order order, int start, SeedBot bot_, OrderSaved saved, string progressStream, string reportStream)
     {
+        using var bot = new BotEventHandler(bot_);
         var insts = order.Instructions;
         var progress = saved.Progress;
-        var results = saved.Result;
-        var context = progress.Context;
+        bot.OnLackOfPermission +=
+            o =>
+            {
+                saved.Result.Denied.Acl.Add(o.Document);
+            };
+        bot.OnGetEditSuccessfully +=
+            (document, _) =>
+            {
+                progress.Context.From = document;
+                WriteJson(progressStream, saved);
+            };
+        bot.OnPostSuccessfully += saved.Result.Accepted.Add;
+        bot.OnPostEditError += o =>
+        {
+            if (o.InvalidRequestBody)
+            {
+                saved.Result.Denied.Bug.Add(o.Document);
+                WriteJson(progressStream, saved);
+            }
+        };
+
 
         var report = new List<OrderResult>();
         for (int i = start; i < insts.Length; i++)
         {
-            var result = results[i];
-            bot.OnLackOfPermission +=
-            o =>
-            {
-                result.Denied.Acl.Add(o.Document);
-            };
-            bot.OnGetEditSuccessfully +=
-                (document, _) =>
-                {
-                    context.From = document;
-                    WriteJson(progressStream, saved);
-                };
-            bot.OnPostSuccessfully += result.Accepted.Add;
-            bot.OnPostEditError += o =>
-            {
-                if (o.InvalidRequestBody)
-                {
-                    result.Denied.Bug.Add(o.Document);
-                    WriteJson(progressStream, saved);
-                }
-            };
+            await insts[i].Invoke(bot, progress.Context);
 
-
-            await insts[i].Invoke(bot, context);
+            report.Add(saved.Result);
+            WriteJson(reportStream, report);
 
             progress.Label = i + 1;
             progress.Context = new();
-            //report.Add();
-            //progress.Result = new();
-            //WriteJson(reportStream, saved.Result);
-            bot.RemoveEvent();
+            saved.Result = new();
         }
     }
 
@@ -123,7 +120,7 @@ public class OrderStarter
     }
 }
 
-public class BotEventHandler
+public class BotEventHandler : IDisposable
 {
     private readonly SeedBot _bot;
     private Action? _removeEvent;
@@ -139,6 +136,8 @@ public class BotEventHandler
     {
         _removeEvent?.Invoke();
     }
+
+    public void Dispose() => RemoveEvent();
 
     public event Action<EditGetError> OnLackOfPermission
     {

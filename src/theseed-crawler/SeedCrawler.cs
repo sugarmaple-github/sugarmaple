@@ -362,9 +362,9 @@ public class SeedViewer : ChromeDriver
         GoToUrl($"diff/{Uri.EscapeDataString(doc)}?rev={rev}&oldrev={oldrev}");
     }
 
-    public void ShowView(string document)
+    public void ShowView(string document, bool noredirect)
     {
-        GoToUrl($"w/{Uri.EscapeDataString(document)}");
+        GoToUrl($"w/{Uri.EscapeDataString(document)}?noredirect={(noredirect ? "1" : "")}");
     }
 
     private void GoToUrl(string lastUrl)

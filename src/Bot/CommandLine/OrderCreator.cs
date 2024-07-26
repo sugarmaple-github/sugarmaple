@@ -13,7 +13,7 @@ public static class OrderCreator
             if (context)
                 b.OnGetEditSuccessfully += (document, text) =>
                 {
-                    b.Bot.Viewer.ShowView(document);
+                    b.Bot.Viewer.ShowView(document, true);
                     searchRoutine = b.Bot.Viewer.SearchRoutine($"//a[contains(@href,'{Uri.EscapeDataString(source)}')]");
                     //enumerator_old = b.Viewer.FindElements(By.XPath("//a[contains(@href,'Repulse%20Stream')]")).GetEnumerator();
                 };

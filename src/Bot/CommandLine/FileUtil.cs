@@ -92,6 +92,9 @@ internal static class FileUtil
 
     static JsonSerializer _serializer = new() { ContractResolver = new CamelCasePropertyNamesContractResolver() };
 
+    public static T GetDeserializedJson<T>(string path)
+=> GetDeserializedJson<T>(path, _serializer);
+
     public static T GetDeserializedJson<T>(string path, JsonSerializer serializer)
     {
         using var file = new StreamReader(OpenRead(path));
@@ -114,5 +117,13 @@ internal static class FileUtil
     internal static string[] GetStrings(string v)
     {
         return File.ReadAllLines(_path + '/' + v);
+    }
+
+    public static void WriteJson<T>(string path, T value)
+    {
+        using var stream = FileUtil.Create(path, FileMode.Truncate, FileAccess.Write);
+        using var streamWriter = new StreamWriter(stream);
+        using var jsonWriter = new JsonTextWriter(streamWriter);
+        _serializer.Serialize(jsonWriter, value);
     }
 }

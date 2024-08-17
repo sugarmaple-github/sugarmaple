@@ -3,25 +3,28 @@
 using Sugarmaple.TheSeed.Namumark;
 using System.Collections;
 
-public static class OrderCreator
+public static class ProcessorCreator
 {
-    public static OrderDelegate Backlink(string source, string from) => async o =>
+    public static Func<OrderContext, IAsyncEnumerable<InternalLink>> Backlink(string source, string from) => o =>
     {
         var b = o.Bot;
         var s = o.Starter;
-        o.Queue = b.Bot.BacklinkReferersAsync<InternalLink>(source, ~NamespaceMask.Wiki, o.Starter.From ?? from, o.CreateLog);
-        o.SaveLabel();
+
+        return b.Bot.BacklinkReferersAsync<InternalLink>(source, ~NamespaceMask.Wiki, o.Starter.From ?? from, o.CreateLog);
+        //o.SaveLabel();
         //(source, destination) => $"[자동] 역링크 정리 \"{source}\" -> \"{destination}\" (사유: {log})")
     };
 
-    internal static OrderDelegate Replace(string destination) => async o =>
+    internal static OrderDelegate Replace(Func<OrderContext, IAsyncEnumerable<InternalLink>> target, string destination) => async o =>
     {
-        o.LogMaker = (source) => $"[자동] 역링크 정리 \"{source}\" -> \"{destination}\" (사유: 의뢰 '')";
-        await foreach (var item in o.Queue)
+        o.LogMaker = (source) =>
+        $"[자동] 역링크 정리 \"{source}\" -> \"{destination}\" (사유: {o.Starter.Config["reason"]})";
+        await foreach (var item in target(o))
         {
-            item.ReplaceWith(new InternalLink() { Reference = destination });
+            item.Reference = destination;
+            //item.ReplaceWith(new InternalLink() { Reference = destination });
         }
-        o.Queue = null;
+        //o.Queue = null;
     };
 
     public static OrderDelegate ReplaceBacklink(string source, string destination,
@@ -79,6 +82,11 @@ public static class OrderCreator
         var b = o.Bot;
         var c = o.Starter;
         await b.Bot.ReplaceSearchAsync(source, destination, target, c.Page, log);
+    };
+
+    internal static OrderDelegate Config(string v, string value) => async o =>
+    {
+        o.Starter.Config[v] = value;
     };
 }
 

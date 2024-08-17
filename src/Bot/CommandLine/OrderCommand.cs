@@ -82,17 +82,18 @@ internal class CommandCompiler
     public static CommandCompiler Default = new();
 
     //public List<OrderDelegate> Queue = new();
-    public int IndentLevel = 0;
 
     public Order Build(string[] commands)
     {
         var context = new OrderCompileInfo();
         var atomCommand = new OrderAtomCommand(context);
-        foreach (var line in commands)
+        for (int i = 0; i < commands.Length; i++)
         {
+            var line = commands[i];
+            context.Label = i;
             atomCommand.Invoke(line);
         }
-        return new Order(context.Delegates.ToArray());
+        return new Order(context.Processors.ToArray());
     }
 
     public void TreatEnumerator(IEnumerable<string> docs)
@@ -126,12 +127,12 @@ public class OrderContext
 
 public class Order
 {
-    private readonly OrderDelegate[] _insts;
+    private readonly (OrderDelegate, int)[] _insts;
 
-    public Order(OrderDelegate[] insts)
+    public Order((OrderDelegate, int)[] insts)
     {
         _insts = insts;
     }
 
-    public OrderDelegate[] Instructions => _insts;
+    public (OrderDelegate, int)[] Instructions => _insts;
 }

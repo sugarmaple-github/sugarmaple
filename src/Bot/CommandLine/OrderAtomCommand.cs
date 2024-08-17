@@ -1,4 +1,8 @@
 ﻿namespace Sugarmaple.Bot.CommandLine;
+
+using Sugarmaple.TheSeed.Namumark;
+using System;
+using System.Collections.Generic;
 using System.CommandLine;
 using System.Diagnostics;
 
@@ -24,7 +28,7 @@ internal class BacklinkCommand_old : Command
         var flagOpt = new Option<string>("--flag", () => "");
 
         cmd.SetHandler((source, flag) =>
-            orders.Add(OrderCreator.MakeEditOnly(source, flag)),
+            orders.Add(ProcessorCreator.MakeEditOnly(source, flag)),
         sourceArg, flagOpt);
         return cmd;
     }
@@ -41,7 +45,7 @@ internal class BacklinkCommand_old : Command
         cmd.AddOption(fromOption);
 
         cmd.SetHandler((source, from) =>
-            orders.Add(OrderCreator.MakeEditOnly(source, from)),
+            orders.Add(ProcessorCreator.MakeEditOnly(source, from)),
         sourceArg, fromOption);
         return cmd;
     }
@@ -80,7 +84,7 @@ internal class BacklinkCommand_old : Command
 
         cmd.SetHandler((source, destinaion, destinaionDisplay, from, sourceAnchor, destAnchor, log, context) =>
         {
-            orders.Add(OrderCreator.ReplaceBacklink(source, destinaion, destinaionDisplay, from, sourceAnchor, destAnchor, log, context));
+            orders.Add(ProcessorCreator.ReplaceBacklink(source, destinaion, destinaionDisplay, from, sourceAnchor, destAnchor, log, context));
         }, sourceArg, destinationOption, destinationDisplayOption, fromOption, sourceAnchorOption, destAnchorOption, logOption, contextOption);
         return cmd;
     }
@@ -111,7 +115,7 @@ internal class SearchCommand : Command
 
         cmd.SetHandler((source, destinaion, target, log) =>
         {
-            orders.Add(OrderCreator.SearchReplace(source, destinaion, target, log));
+            orders.Add(ProcessorCreator.SearchReplace(source, destinaion, target, log));
         }, sourceArg, destinationArg, targetOpt, BacklinkCommand_old.logOption);
         return cmd;
     }
@@ -126,8 +130,25 @@ internal class OrderAtomCommand : RootCommand
     {
         Add(BacklinkCmd(context));
         Add(ReplaceCmd(context));
+        Add(ConfigCmd(context));
+
         //Add(new BacklinkCommand_old(_orders));
         //Add(new SearchCommand(_orders));
+    }
+
+    private Command ConfigCmd(OrderCompileInfo context)
+    {
+        var cmd = new Command("config");
+        var reason = new Command("reason");
+        var reasonArg = new Argument<string>("reasonArg");
+        cmd.Add(reason);
+        reason.Add(reasonArg);
+        reason.SetHandler(o =>
+        {
+            context.SavedLabel = context.Label;
+            context.Processors.Add((ProcessorCreator.Config("reason", o), context.SavedLabel));
+        }, reasonArg);
+        return cmd;
     }
 
     private Command BacklinkCmd(OrderCompileInfo context)
@@ -143,7 +164,8 @@ internal class OrderAtomCommand : RootCommand
         cmd.SetHandler((s, f) =>
         {
             context.Level = 1;
-            context.Delegates.Add(OrderCreator.Backlink(s, f));
+            context.SavedLabel = context.Label;
+            context.Target = (ProcessorCreator.Backlink(s, f));
         }, sourceArg, fromOption);
 
         return cmd;
@@ -160,7 +182,7 @@ internal class OrderAtomCommand : RootCommand
         {
             Trace.Assert(context.Level >= 1);
             context.Level--;
-            context.Delegates.Add(OrderCreator.Replace(d));
+            context.Processors.Add((ProcessorCreator.Replace(context.Target, d), context.SavedLabel));
         }, destinationArg);
 
         return cmd;
@@ -176,6 +198,10 @@ internal class OrderAtomCommand : RootCommand
 
 public class OrderCompileInfo
 {
-    public List<OrderDelegate> Delegates = new();
+    public List<(OrderDelegate Processor, int Label)> Processors = new();
     public int Level;
+    public int Label;
+    public int SavedLabel;
+
+    public Func<OrderContext, IAsyncEnumerable<InternalLink>> Target { get; internal set; }
 }

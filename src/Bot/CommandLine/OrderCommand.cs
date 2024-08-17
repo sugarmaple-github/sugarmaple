@@ -4,6 +4,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json.Serialization;
 using Sugarmaple.TheSeed.Api;
+using Sugarmaple.TheSeed.Namumark;
 using System;
 using System.CommandLine;
 
@@ -79,19 +80,49 @@ public class OrderCommand : Command
 internal class CommandCompiler
 {
     public static CommandCompiler Default = new();
-    public OrderAtomCommand Command = new();
+
+    //public List<OrderDelegate> Queue = new();
+    public int IndentLevel = 0;
 
     public Order Build(string[] commands)
     {
+        var context = new OrderCompileInfo();
+        var atomCommand = new OrderAtomCommand(context);
         foreach (var line in commands)
         {
-            Command.Invoke(line);
+            atomCommand.Invoke(line);
         }
-        return new Order(Command.GetOrder().ToArray());
+        return new Order(context.Delegates.ToArray());
+    }
+
+    public void TreatEnumerator(IEnumerable<string> docs)
+    {
+
     }
 }
 
-public delegate Task OrderDelegate(BotEventHandler bot, OrderContext starter);
+public delegate Task OrderDelegate(OrderContext context);
+
+public class OrderContext
+{
+    public BotEventHandler Bot;
+    public OrderContinueInfo Starter;
+    public IAsyncEnumerable<InternalLink> Queue;
+    public int Index;
+
+    public Func<string, string>? LogMaker { get; internal set; }
+    public Action Saver { get; internal set; }
+
+    internal string CreateLog(string arg)
+    {
+        return LogMaker(arg);
+    }
+
+    internal void SaveLabel()
+    {
+        Saver();
+    }
+}
 
 public class Order
 {

@@ -1,9 +1,10 @@
 ﻿namespace Sugarmaple.Bot.CommandLine;
 using System.CommandLine;
+using System.Diagnostics;
 
-internal class BacklinkCommand : Command
+internal class BacklinkCommand_old : Command
 {
-    public BacklinkCommand(List<OrderDelegate> orders) : base("backlink")
+    public BacklinkCommand_old(List<OrderDelegate> orders) : base("backlink")
     {
         Add(EditOnly(orders));
         Add(GetEditBacklink(orders));
@@ -106,30 +107,75 @@ internal class SearchCommand : Command
         var targetOpt = new Option<string>("destination", () => "content");
         cmd.Add(destinationArg);
 
-        cmd.Add(BacklinkCommand.logOption);
+        cmd.Add(BacklinkCommand_old.logOption);
 
         cmd.SetHandler((source, destinaion, target, log) =>
         {
             orders.Add(OrderCreator.SearchReplace(source, destinaion, target, log));
-        }, sourceArg, destinationArg, targetOpt, BacklinkCommand.logOption);
+        }, sourceArg, destinationArg, targetOpt, BacklinkCommand_old.logOption);
         return cmd;
     }
 }
 
 internal class OrderAtomCommand : RootCommand
 {
-    private readonly List<OrderDelegate> _orders = new();
+    //[Obsolete]
+    //private readonly List<OrderDelegate> _orders = new();
 
-    public OrderAtomCommand()
+    public OrderAtomCommand(OrderCompileInfo context)
     {
-        Add(new BacklinkCommand(_orders));
-        Add(new SearchCommand(_orders));
+        Add(BacklinkCmd(context));
+        Add(ReplaceCmd(context));
+        //Add(new BacklinkCommand_old(_orders));
+        //Add(new SearchCommand(_orders));
     }
 
-    public IEnumerable<OrderDelegate> GetOrder()
+    private Command BacklinkCmd(OrderCompileInfo context)
     {
-        var ret = _orders.ToList();
-        _orders.Clear();
-        return ret;
+        var cmd = new Command("backlink");
+
+        var sourceArg = new Argument<string>("source");
+        cmd.Add(sourceArg);
+
+        var fromOption = new Option<string>("--from", () => "");
+        cmd.AddOption(fromOption);
+
+        cmd.SetHandler((s, f) =>
+        {
+            context.Level = 1;
+            context.Delegates.Add(OrderCreator.Backlink(s, f));
+        }, sourceArg, fromOption);
+
+        return cmd;
     }
+
+    private Command ReplaceCmd(OrderCompileInfo context)
+    {
+        var cmd = new Command("replace");
+
+        var destinationArg = new Argument<string>("destination");
+        cmd.Add(destinationArg);
+
+        cmd.SetHandler(d =>
+        {
+            Trace.Assert(context.Level >= 1);
+            context.Level--;
+            context.Delegates.Add(OrderCreator.Replace(d));
+        }, destinationArg);
+
+        return cmd;
+    }
+
+    //public IEnumerable<OrderDelegate> GetOrder()
+    //{
+    //    var ret = _orders.ToList();
+    //    _orders.Clear();
+    //    return ret;
+    //}
+}
+
+public class OrderCompileInfo
+{
+    public List<OrderDelegate> Delegates = new();
+    public int Level;
 }

@@ -5,15 +5,16 @@ using Sugarmaple.TheSeed.Api;
 using System;
 using System.IO;
 
-public class OrderContext
+public class OrderContinueInfo
 {
     public string From { get; set; }
     public int Page { get; set; } = 1;
+
 }
 public class OrderProgress
 {
     public int Label { get; set; }
-    public OrderContext Context { get; set; } = new();
+    public OrderContinueInfo Context { get; set; } = new();
 }
 public class OrderDenied
 {
@@ -89,9 +90,10 @@ public class OrderStarter
 
 
         var report = new List<OrderResult>();
+        var context = new OrderContext() { Bot = bot, Starter = progress.Context, Saver = () => WriteJson(progressStream, saved) };
         for (int i = start; i < insts.Length; i++)
         {
-            await insts[i].Invoke(bot, progress.Context);
+            await insts[i].Invoke(context);
 
             report.Add(saved.Result);
             WriteJson(reportStream, report);

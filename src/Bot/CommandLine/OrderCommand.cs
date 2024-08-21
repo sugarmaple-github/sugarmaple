@@ -32,19 +32,23 @@ internal static class DefaultBot
         {
             if (_handler == null)
             {
-                var json = JObject.Parse(File.ReadAllText("credentials.json"));
+                var file = new FileStream("config.json", FileMode.OpenOrCreate, FileAccess.ReadWrite);
+                var profile = FileUtil.GetDeserializedJson<Profile>(file);
 
-                var wikiUri = json["wikiUri"].Value<string>();
-                var wikiApiUri = json["wikiApiUri"].Value<string>();
-                var apiToken = json["apiToken"].Value<string>();
-                var userName = json["userName"].Value<string>();
-                var wikiNamespaces = json["wikiNamespaces"].Values<string>();
+                (var wikiUri, var wikiApiUri, var apiToken, var userName, var wikiNamespaces) = profile;
                 _handler = ConsoleBotCreator.Create(wikiUri, wikiApiUri, apiToken, userName, wikiNamespaces.ToArray());
             }
             return _handler;
         }
     }
 }
+
+public record Profile(
+    string WikiUri,
+    string WikiApiUri,
+    string ApiToken,
+    string UserName,
+    string[] WikiNamespaces);
 
 internal class CommandCompiler
 {

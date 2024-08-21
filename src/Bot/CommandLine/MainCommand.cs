@@ -7,7 +7,13 @@ public class MainCommand : RootCommand
 {
     internal MainCommand()
     {
+        //Add(Profile());
         Add(Session());
+    }
+    private static Command Profile()
+    {
+        var cmd = new Command("profile");
+        return cmd;
     }
 
     private static Command Session()

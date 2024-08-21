@@ -24,56 +24,22 @@ public class ConsoleMessage
 
 internal static class DefaultBot
 {
-    public static ConsoleBotHandler Handler { get; set; }
-}
+    public static ConsoleBotHandler? _handler;
 
-public class OrderCommand : Command
-{
-    internal OrderCommand() : base("order")
+    public static ConsoleBotHandler Handler
     {
-        var executeCommand = new Command("execute");
-        Add(executeCommand);
-
-        var taskNameArgument = new Argument<string>();
-        executeCommand.Add(taskNameArgument);
-
-        var checkingOption = new System.CommandLine.Option<bool>("--check", () => true);
-        executeCommand.Add(checkingOption);
-
-        executeCommand.SetHandler(async (task, checking) => await Progress(task, DefaultBot.Handler, checking), taskNameArgument, checkingOption);
-
-        var resetCmd = new Command("reset");
-        Add(resetCmd);
-        resetCmd.Add(taskNameArgument);
-        resetCmd.SetHandler((task) =>
+        get
         {
-            var path = Path.Combine("tasks", task);
-            var text = FileUtil.Read(path);
-            var json = JObject.Parse(text)!;
-            var progress = json["progress"];
-            progress["label"] = 0;
-            progress["context"]["from"] = "";
-            Save(path, json);
-        }, taskNameArgument);
-    }
-
-    private void Save(string path, JObject json)
-    {
-        using var fileStream = FileUtil.Create(path);
-        using var streamWriter = new StreamWriter(fileStream);
-        using var jsonWriter = new JsonTextWriter(streamWriter) { Indentation = 4, IndentChar = ' ' };
-        json.WriteTo(jsonWriter);
-    }
-
-    private static Task Progress(string orderName, ConsoleBotHandler handler, bool checking)
-    {
-        Console.Clear();
-        ConsoleMessage.Default.ShowMessage("OrderStart", orderName);
-
-        handler.CheckEditMode = checking;
-
-        var starter = new OrderStarter();
-        return starter.Start(orderName, handler.Bot);
+            if (_handler == null)
+            {
+                var wikiUri = FileUtil.GetValue("WikiUri");
+                var apiToken = FileUtil.GetValue("ApiToken");
+                var userName = FileUtil.GetValue("UserName");
+                var wikiNamespaces = FileUtil.GetValues("WikiNamespaces");
+                _handler = ConsoleBotCreator.Create("https://namu.wiki", wikiUri, apiToken, userName, wikiNamespaces);
+            }
+            return _handler;
+        }
     }
 }
 

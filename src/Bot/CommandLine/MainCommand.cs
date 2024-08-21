@@ -1,63 +1,64 @@
 ﻿namespace Sugarmaple.Bot.CommandLine;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System.CommandLine;
-using System.Text;
 
 public class MainCommand : RootCommand
 {
     internal MainCommand()
     {
-        var wikiUri = FileUtil.GetValue("WikiUri");
-        var apiToken = FileUtil.GetValue("ApiToken");
-        var userName = FileUtil.GetValue("UserName");
-        var wikiNamespaces = FileUtil.GetValues("WikiNamespaces");
-        var bot = ConsoleBotCreator.Create("https://namu.wiki", wikiUri, apiToken, userName, wikiNamespaces);
-        DefaultBot.Handler = bot;
-        Add(new OrderCommand());
+        Add(Session());
     }
 
-    private static void Test(SeedBot bot)
+    private static Command Session()
     {
-        //bot.ReplaceSearch();
-    }
-}
+        var cmd = new Command("session");
 
-public static class CommandSpliter
-{
-    public static List<string> Split(string commandRaw)
-    {
-        return ParseCommands(commandRaw);
-    }
+        var executeCommand = new Command("execute");
+        cmd.Add(executeCommand);
 
-    public static List<string> ParseCommands(string input)
-    {
-        List<string> commands = new List<string>();
-        StringBuilder currentCommand = new StringBuilder();
-        bool insideQuotes = false;
+        var taskNameArgument = new Argument<string>();
+        executeCommand.Add(taskNameArgument);
 
-        foreach (char c in input)
+        var checkingOption = new Option<bool>("--check", () => true);
+        executeCommand.Add(checkingOption);
+
+        executeCommand.SetHandler(async (task, checking) => await Progress(task, DefaultBot.Handler, checking), taskNameArgument, checkingOption);
+
+        var resetCmd = new Command("reset");
+        cmd.Add(resetCmd);
+        resetCmd.Add(taskNameArgument);
+        resetCmd.SetHandler((task) =>
         {
-            if (c == ';' && !insideQuotes)
-            {
-                // 세미콜론이 따옴표 안에 없으면 명령어를 추가
-                commands.Add(currentCommand.ToString().Trim());
-                currentCommand.Clear();
-            }
-            else
-            {
-                // 세미콜론이 따옴표 안에 있거나 다른 문자인 경우에는 현재 부분을 그대로 추가
-                currentCommand.Append(c);
-            }
+            var path = Path.Combine("tasks", task);
+            var text = FileUtil.Read(path);
+            var json = JObject.Parse(text)!;
+            var progress = json["progress"];
+            progress["label"] = 0;
+            progress["context"]["from"] = "";
+            Save(path, json);
+        }, taskNameArgument);
 
-            // 따옴표 안에 있으면 상태 업데이트
-            if (c == '\"' || c == '\'')
-            {
-                insideQuotes = !insideQuotes;
-            }
-        }
 
-        // 마지막 명령어 추가
-        commands.Add(currentCommand.ToString().Trim());
+        return cmd;
+    }
 
-        return commands;
+    private static void Save(string path, JObject json)
+    {
+        using var fileStream = FileUtil.Create(path);
+        using var streamWriter = new StreamWriter(fileStream);
+        using var jsonWriter = new JsonTextWriter(streamWriter) { Indentation = 4, IndentChar = ' ' };
+        json.WriteTo(jsonWriter);
+    }
+
+    private static Task Progress(string session, ConsoleBotHandler handler, bool checking)
+    {
+        Console.Clear();
+        ConsoleMessage.Default.ShowMessage("OrderStart", session);
+
+        handler.CheckEditMode = checking;
+
+        var starter = new OrderStarter();
+        return starter.Start(session, handler.Bot);
     }
 }

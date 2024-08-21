@@ -7,7 +7,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "theseed-crawler", "theseed-
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "theseed-crawler.Core.Tests", "theseed-crawler.Core.Tests\theseed-crawler.Core.Tests.csproj", "{076B9DF6-212F-4570-882F-AAFDA2574FB8}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Bot", "Bot\Bot.csproj", "{FDA92FCB-A465-4E8C-B314-87BE98B5B4DB}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "sugarmaple", "Bot\sugarmaple.csproj", "{FDA92FCB-A465-4E8C-B314-87BE98B5B4DB}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "theseed-api", "theseed-api\theseed-api.csproj", "{789BF25D-D803-4EA9-8ACE-27E5E83E2BF7}"
 EndProject

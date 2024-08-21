@@ -111,8 +111,8 @@ internal class ConsoleBotCreator
         var state = new ConsoleBotHandler(bot);
         state.DetectingChange += (older, newer) =>
         {
-            FileUtil.Write("before_edit.txt", older);
-            FileUtil.Write("after_edit.txt", newer);
+            File.WriteAllText("before_edit.txt", older);
+            File.WriteAllText("after_edit.txt", newer);
         };
 
         bot.OnGetEditSuccessfully += state.BeforeEveryEdit;

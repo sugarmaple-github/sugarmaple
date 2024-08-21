@@ -32,11 +32,14 @@ internal static class DefaultBot
         {
             if (_handler == null)
             {
-                var wikiUri = FileUtil.GetValue("WikiUri");
-                var apiToken = FileUtil.GetValue("ApiToken");
-                var userName = FileUtil.GetValue("UserName");
-                var wikiNamespaces = FileUtil.GetValues("WikiNamespaces");
-                _handler = ConsoleBotCreator.Create("https://namu.wiki", wikiUri, apiToken, userName, wikiNamespaces);
+                var json = JObject.Parse(File.ReadAllText("credentials.json"));
+
+                var wikiUri = json["wikiUri"].Value<string>();
+                var wikiApiUri = json["wikiApiUri"].Value<string>();
+                var apiToken = json["apiToken"].Value<string>();
+                var userName = json["userName"].Value<string>();
+                var wikiNamespaces = json["wikiNamespaces"].Values<string>();
+                _handler = ConsoleBotCreator.Create(wikiUri, wikiApiUri, apiToken, userName, wikiNamespaces.ToArray());
             }
             return _handler;
         }

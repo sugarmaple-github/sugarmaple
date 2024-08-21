@@ -4,7 +4,7 @@ using Newtonsoft.Json.Serialization;
 using System.IO;
 
 
-public class OrderStarter
+public class SessionHandler
 {
     public Task Start(string orderName, SeedBot bot)
     {

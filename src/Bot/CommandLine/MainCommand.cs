@@ -28,24 +28,26 @@ public class MainCommand : RootCommand
         var resetCmd = new Command("reset");
         cmd.Add(resetCmd);
         resetCmd.Add(taskNameArgument);
-        resetCmd.SetHandler((task) =>
-        {
-            var path = Path.Combine("tasks", task);
-            var text = FileUtil.Read(path);
-            var json = JObject.Parse(text)!;
-            var progress = json["progress"];
-            progress["label"] = 0;
-            progress["context"]["from"] = "";
-            Save(path, json);
-        }, taskNameArgument);
+        resetCmd.SetHandler(Reset, taskNameArgument);
 
 
         return cmd;
     }
 
+    static void Reset(string task)
+    {
+        var path = Path.Combine("tasks", task);
+        var text = FileUtil.Read(path);
+        var json = JObject.Parse(text)!;
+        var progress = json["progress"];
+        progress["label"] = 0;
+        progress["context"]["from"] = "";
+        Save(path, json);
+    }
+
     private static void Save(string path, JObject json)
     {
-        using var fileStream = FileUtil.Create(path);
+        using var fileStream = new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite);
         using var streamWriter = new StreamWriter(fileStream);
         using var jsonWriter = new JsonTextWriter(streamWriter) { Indentation = 4, IndentChar = ' ' };
         json.WriteTo(jsonWriter);
@@ -58,7 +60,7 @@ public class MainCommand : RootCommand
 
         handler.CheckEditMode = checking;
 
-        var starter = new OrderStarter();
+        var starter = new SessionHandler();
         return starter.Start(session, handler.Bot);
     }
 }

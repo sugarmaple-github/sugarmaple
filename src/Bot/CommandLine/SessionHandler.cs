@@ -6,16 +6,35 @@ using System.IO;
 
 public class SessionHandler
 {
+    public static void Create(string name)
+    {
+        if (!name.EndsWith(".json"))
+            name += ".json";
+        var newData = new SessionSaved();
+        if (!Directory.Exists("sessions"))
+            Directory.CreateDirectory("sessions");
+        var path = Path.Combine("sessions", name);
+        FileUtil.WriteJson(path, newData);
+    }
+
+    public static void AddCommand(string name, List<string> commandSet)
+    {
+        var path = Path.Combine("sessions", name);
+        var session = FileUtil.GetDeserializedJson<SessionSaved>(path);
+        session.Commands.Add(commandSet);
+        FileUtil.WriteJson(path, session);
+    }
+
     public Task Start(string orderName, SeedBot bot)
     {
         var progresssPath = Path.Combine("tasks", orderName);
-        var order = FileUtil.GetDeserializedJson<OrderSaved>(progresssPath);
+        var order = FileUtil.GetDeserializedJson<SessionSaved>(progresssPath);
 
         var reportPath = Path.Combine("reports", orderName);
         return Start(ref order, bot, progresssPath, reportPath);
     }
 
-    public Task Start(ref OrderSaved orderSaved, SeedBot bot, string progress, string result)
+    public Task Start(ref SessionSaved orderSaved, SeedBot bot, string progress, string result)
     {
         var label = orderSaved.Progress.Label;
         var commands = FileUtil.Read(Path.Combine("orders", orderSaved.Script)).Split('\n');
@@ -23,7 +42,7 @@ public class SessionHandler
         return Invoke(order, label, bot, orderSaved, progress, result);
     }
 
-    public async Task Invoke(Order order, int start, SeedBot bot_, OrderSaved saved, string progressStream, string reportStream)
+    public async Task Invoke(Order order, int start, SeedBot bot_, SessionSaved saved, string progressStream, string reportStream)
     {
         using var bot = new BotEventHandler(bot_);
         var insts = order.Instructions;

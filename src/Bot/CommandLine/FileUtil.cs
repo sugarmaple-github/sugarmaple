@@ -33,7 +33,7 @@ internal static class FileUtil
 
     public static void WriteJson<T>(string path, T value)
     {
-        using var stream = new FileStream(path, FileMode.Truncate, FileAccess.Write);
+        using var stream = new FileStream(path, FileMode.OpenOrCreate, FileAccess.Write);
         using var streamWriter = new StreamWriter(stream);
         using var jsonWriter = new JsonTextWriter(streamWriter);
         _serializer.Serialize(jsonWriter, value);

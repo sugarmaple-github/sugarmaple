@@ -4,14 +4,21 @@ using Newtonsoft.Json.Serialization;
 using Sugarmaple.TheSeed.Api;
 
 [JsonObject]
-public struct OrderSaved
+public struct SessionSaved
 {
+    public SessionSaved()
+    {
+    }
+
+    public List<List<string>> Commands { get; set; } = new();
+
     [JsonProperty]
+    [Obsolete]
     public string Script { get; set; }
     [JsonProperty]
-    public OrderProgress Progress { get; set; }
+    public OrderProgress Progress { get; set; } = new();
     [JsonProperty]
-    public OrderResult Result { get; set; }
+    public OrderResult Result { get; set; } = new();
 }
 
 public class OrderContinueInfo

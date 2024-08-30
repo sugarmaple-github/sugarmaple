@@ -15,3 +15,4 @@ else
 {
     rootCmd.Invoke(args);
 }
+

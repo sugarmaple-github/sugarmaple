@@ -74,6 +74,7 @@ public class MainCommand : RootCommand
 
     private static bool ValidateAndNeedMoreLine(string line)
     {
+        return false;
         //var OrderAtomCommand();
     }
 
@@ -102,8 +103,6 @@ public class MainCommand : RootCommand
         ConsoleMessage.Default.ShowMessage("OrderStart", session);
 
         handler.CheckEditMode = checking;
-
-        var starter = new SessionHandler();
-        return starter.Start(session, handler.Bot);
+        return SessionHandler.Execute(session, handler.Bot);
     }
 }

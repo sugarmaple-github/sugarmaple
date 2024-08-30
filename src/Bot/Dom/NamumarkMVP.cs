@@ -46,18 +46,27 @@ public interface IReferer : IElement
     void ReplaceWith(Clause clause);
 }
 
+public interface IAnchorReferer : IReferer
+{
+    string Anchor { get; set; }
+}
+
 public interface IParentLink : IReferer
 {
     ElementList<Clause> Children { get; }
 }
 
-public class Redirect : Clause, IReferer
+public class Redirect : Clause, IAnchorReferer
 {
     private string _reference = "";
     private string? _anchor;
 
     public string Reference { get => _reference; set => ChangeMember(ref _reference, value); }
-    public string? Anchor { get => _anchor; set => ChangeMember(ref _anchor, value); }
+    public string? Anchor
+    {
+        get => _anchor;
+        set => ChangeMember(ref _anchor, value);
+    }
 }
 
 public class CategoryLink : Clause, IReferer
@@ -79,7 +88,7 @@ public class Italic : ParentClause
 {
 }
 
-public class InternalLink : ParentClause, IParentLink
+public class InternalLink : ParentClause, IParentLink, IAnchorReferer
 {
     private string _reference = "";
     private string? _anchor;

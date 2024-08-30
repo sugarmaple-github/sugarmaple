@@ -33,13 +33,15 @@ public class SeedBot : SeedApiClient
 
     public Dictionary<string, LogMaker> LogMakerDict { get; } = new();
     public SeedViewer? _viewer;
-    public SeedViewer Viewer { get => _viewer ??= new(WikiUri); }
+    public SeedViewer Viewer { get => _viewer ??= new(_trueWikiUri); }
+    private string _trueWikiUri;
     public string[] WikiNamespaces { get; internal set; }
     public Action<string, Document> DocumentPosting { get; internal set; }
 
     public SeedBot(string wikiUri, string wikiApiUri, string apiToken, string userName, string[] wikiNamespaces) : base(wikiApiUri, apiToken)
     {
         _crawler = new(wikiUri);
+        _trueWikiUri = wikiUri;
         OnGetEditError += o =>
         {
             if (o.IsLackOfPermission)

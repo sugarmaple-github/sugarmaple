@@ -6,24 +6,24 @@ internal class Parser
 {
     public string _raw;
 
-    public Element Parse(ASTNode token)
+    public Element Parse(ASTNode token, Document owner = null)
     {
         Element elem = token.Type switch
         {
             ASTNodeType.Document => ParseDocument(token),
             ASTNodeType.Literal => ParseLiteral(token),
-            ASTNodeType.InternalLink => ParseInternalLink(token),
-            ASTNodeType.ExternalLink => ParseExternalLink(token),
+            ASTNodeType.InternalLink => ParseInternalLink(token, owner),
+            ASTNodeType.ExternalLink => ParseExternalLink(token, owner),
             ASTNodeType.Category => ParseCategoryLink(token),
             ASTNodeType.FileLink => ParseFileLink(token),
             ASTNodeType.TableOfContents => new TableOfContents(),
             ASTNodeType.Br => new BrMacro(),
             ASTNodeType.Macro => ParseMacro(token),
             ASTNodeType.Text => new Text(new StringSegment(_raw, token.Index, token.Length)),
-            ASTNodeType.Table => ParseTable(token),
-            ASTNodeType.MarkupBracket => ParseMarkupBracket(token),
-            ASTNodeType.Bold => new Bold { Children = ParseChildAsElementList(token, 0) },
-            ASTNodeType.Italic => new Italic { Children = ParseChildAsElementList(token, 0) },
+            ASTNodeType.Table => ParseTable(token, owner),
+            ASTNodeType.MarkupBracket => ParseMarkupBracket(token, owner),
+            ASTNodeType.Bold => new Bold { Children = ParseChildAsElementList(token, 0, owner) },
+            ASTNodeType.Italic => new Italic { Children = ParseChildAsElementList(token, 0, owner) },
             ASTNodeType.Redirect => new Redirect
             {
                 Reference = ParseChildAsString(token, 0),
@@ -31,6 +31,7 @@ internal class Parser
             },
             _ => throw new NotImplementedException(),
         };
+        elem.OwnerDocument = owner;
         MarkupRawCache.Add(elem, _raw.ToSegment(token.Index, token.Length));
         return elem;
     }
@@ -42,20 +43,20 @@ internal class Parser
         Display = ParseChildAsString(token, 2),
     };
 
-    private ExternalLink ParseExternalLink(ASTNode token) => new()
+    private ExternalLink ParseExternalLink(ASTNode token, Document owner) => new()
     {
-        Children = ParseChildAsElementList(token, 0),
+        Children = ParseChildAsElementList(token, 0, owner),
         Reference = ParseChildAsString(token, 1)!,
     };
 
-    private InternalLink ParseInternalLink(ASTNode token) => new()
+    private InternalLink ParseInternalLink(ASTNode token, Document owner) => new()
     {
-        Children = ParseChildAsElementList(token, 0),
+        Children = ParseChildAsElementList(token, 0, owner),
         Reference = ParseChildAsString(token, 1)!,
         Anchor = ParseChildAsString(token, 2),
     };
 
-    private Table ParseTable(ASTNode node)
+    private Table ParseTable(ASTNode node, Document owner)
     {
         var ret = new Table();
         foreach (var trNode in node.Children)
@@ -63,7 +64,7 @@ internal class Parser
             var tr = new TableRow();
             foreach (var tdNode in trNode.Children)
             {
-                var td = ParseTableData(tdNode);
+                var td = ParseTableData(tdNode, owner);
                 tr.AppendChild(td);
             }
             ret.AppendChild(tr);
@@ -90,11 +91,11 @@ internal class Parser
         return ret;
     }
 
-    private TableData ParseTableData(ASTNode node)
+    private TableData ParseTableData(ASTNode node, Document owner)
     {
         var attr = ParseTDAttributes(node.Children[1]);
         var td = new TableData { Attributes = attr };
-        foreach (var o in ParseElementList(node.Children[0]))
+        foreach (var o in ParseElementList(node.Children[0], owner))
             td.AppendChild(o);
         return td;
     }
@@ -105,26 +106,26 @@ internal class Parser
         return ret;
     }
 
-    private WikiBracket ParseMarkupBracket(ASTNode token)
+    private WikiBracket ParseMarkupBracket(ASTNode token, Document owner)
         => new()
         {
             Tag = ParseChildAsString(token, 0),
-            Children = ParseChildAsElementList(token, 1)
+            Children = ParseChildAsElementList(token, 1, owner)
         };
 
     public Document ParseDocument(ASTNode node)
     {
         var ret = new Document();
         foreach (var child in node.Children[0].Children)
-            ret.AppendChild(ParseParagraph(child));
+            ret.AppendChild(ParseParagraph(child, ret));
         return ret;
     }
 
-    private Heading ParseHeading(ASTNode node)
+    private Heading ParseHeading(ASTNode node, Document owner)
     {
         Heading h = (node.Children != null && node.Children.Count > 2) ? new()
         {
-            Children = ParseChildAsElementList(node, 0),
+            Children = ParseChildAsElementList(node, 0, owner),
             Level = ParseChildAsSpan(node, 1).Length,
             Folded = ParseChildAsSpan(node, 2).Length > 0,
         } : new() { Level = 0 };
@@ -132,22 +133,22 @@ internal class Parser
         return h;
     }
 
-    private Paragraph ParseParagraph(ASTNode node)
+    private Paragraph ParseParagraph(ASTNode node, Document owner)
     {
         var ret = new Paragraph();
-        ret.ReplaceChild(ParseHeading(node.Children[0]), ret.Heading);
-        ret.ReplaceChild(ParseContent(node.Children[1]), ret.Content);
+        ret.ReplaceChild(ParseHeading(node.Children[0], owner), ret.Heading);
+        ret.ReplaceChild(ParseContent(node.Children[1], owner), ret.Content);
         MarkupRawCache.Add(ret, _raw.ToSegment(node.Index, node.Length));
         return ret;
     }
 
-    private HeadingContent ParseContent(ASTNode node)
+    private HeadingContent ParseContent(ASTNode node, Document owner)
     {
-        var ret = new HeadingContent { Children = ParseElementList(node) };
+        var ret = new HeadingContent { Children = ParseElementList(node, owner) };
         return ret;
     }
 
-    private ElementList<Clause> ParseElementList(ASTNode node)
+    private ElementList<Clause> ParseElementList(ASTNode node, Document owner)
     {
         var list = new List<Clause>();
         var last = node.Index;
@@ -155,7 +156,7 @@ internal class Parser
         {
             if (last < child.Index)
                 list.Add(new Text(_raw[last..child.Index]));
-            list.Add((Clause)Parse(child));
+            list.Add((Clause)Parse(child, owner));
             last = child.Index + child.Length;
         }
         if (last < node.Index + node.Length)
@@ -163,9 +164,9 @@ internal class Parser
         return new(list);
     }
 
-    private ElementList<Clause> ParseChildAsElementList(ASTNode node, int index)
+    private ElementList<Clause> ParseChildAsElementList(ASTNode node, int index, Document owner)
     {
-        return ParseElementList(node.Children[index]);
+        return ParseElementList(node.Children[index], owner);
     }
 
     private Macro ParseMacro(ASTNode node)

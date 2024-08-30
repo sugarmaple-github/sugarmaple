@@ -1,5 +1,6 @@
 ﻿namespace Sugarmaple.Bot.CommandLine;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Newtonsoft.Json.Serialization;
 
 internal static class FileUtil
@@ -10,10 +11,12 @@ internal static class FileUtil
         return ret;
     }
 
-    static JsonSerializer _serializer = new()
+    static readonly JsonSerializer _serializer = JsonSerializer.Create(new JsonSerializerSettings()
     {
         ContractResolver = new CamelCasePropertyNamesContractResolver(),
-    };
+        Converters = new[] { new SessionArgConverter() },
+        Formatting = Formatting.Indented,
+    });
 
     public static T GetDeserializedJson<T>(string path) => GetDeserializedJson<T>(path, _serializer);
 
@@ -33,9 +36,11 @@ internal static class FileUtil
 
     public static void WriteJson<T>(string path, T value)
     {
-        using var stream = new FileStream(path, FileMode.OpenOrCreate, FileAccess.Write);
+        using var stream = new FileStream(path, FileMode.Truncate, FileAccess.Write);
         using var streamWriter = new StreamWriter(stream);
         using var jsonWriter = new JsonTextWriter(streamWriter);
+        jsonWriter.Indentation = 4;
         _serializer.Serialize(jsonWriter, value);
     }
 }
+

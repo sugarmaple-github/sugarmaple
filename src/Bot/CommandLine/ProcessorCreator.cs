@@ -22,9 +22,7 @@ public static class ProcessorCreator
         await foreach (var item in target(o))
         {
             item.Reference = destination;
-            //item.ReplaceWith(new InternalLink() { Reference = destination });
         }
-        //o.Queue = null;
     };
 
     public static OrderDelegate ReplaceBacklink(string source, string destination,

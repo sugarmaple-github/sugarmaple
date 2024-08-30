@@ -38,6 +38,7 @@ public static class SeedBotExtensions
         await foreach (var view in backlinks)
         {
             var doc = DocumentFactory.Default.Parse(view.Text);
+            doc.Title = view.Document;
             yield return doc;
             await _bot.PostEditAsync(view, doc, log);
             doc.Dispose();
@@ -50,6 +51,7 @@ public static class SeedBotExtensions
         await foreach (var view in backlinks)
         {
             var doc = DocumentFactory.Default.Parse(view.Text);
+            doc.Title = view.Document;
             yield return doc;
             await _bot.PostEditAsync(view, doc, logMaker(document));
             doc.Dispose();

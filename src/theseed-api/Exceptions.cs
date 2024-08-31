@@ -3,6 +3,7 @@
 /// <summary>
 /// 위키에서 올바르지 않은 문서명을 받을 때 throw되는 예외입니다.
 /// </summary>
+[Obsolete]
 public class InvalidDocumentException : WikiException
 {
     /// <summary>
@@ -16,16 +17,7 @@ public class InvalidDocumentException : WikiException
     }
 }
 
-/// <summary>
-/// 편집 시작 이후 다른 편집자가 먼저 편집을 완료할 때 throw되는 예외입니다.
-/// </summary>
-public class EditConflictException : WikiException
-{
-    internal EditConflictException(string editToken) : base($"During editing, another user edited first. Your edit token was \"{editToken}\".")
-    {
-    }
-}
-
+[Obsolete]
 /// <summary>
 /// 접근 권한이 부족한 문서에 작업을 시도할 때 throw되는 예외입니다.
 /// </summary>
@@ -36,6 +28,7 @@ public class AccessLevelLacksException : WikiException
     }
 }
 
+[Obsolete]
 public class WikiException : Exception
 {
     /// <summary>

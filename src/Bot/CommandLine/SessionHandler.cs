@@ -137,7 +137,15 @@ public class SessionActionRunner
 
     public static async Task ExecuteEdit(EditArgs args, SeedBot bot, Dictionary<string, string> config, Action saver)
     {
-        //bot.OnPostSuccessfully
+        await foreach (var doc in args.Scope.ToAsyncEnumerable().SelectMany(o => CallFunctionScope_new(o, bot, config)))
+        {
+            foreach (var o in doc.QuerySelectorAll<IAnchorReferer>("*"))
+            {
+                ExecuteEditProcessing(o, args.Processing, bot, config, saver);
+            }
+        }
+
+
         await foreach (var o in args.Scope.ToAsyncEnumerable().SelectMany(o => CallFunctionScope(o, bot, config)))
         {
             ExecuteEditProcessing(o, args.Processing, bot, config, saver);
@@ -180,6 +188,17 @@ public class SessionActionRunner
             case "true": return true;
             default: throw new Exception();
         }
+    }
+
+    public static IAsyncEnumerable<Document> CallFunctionScope_new(FunctionCall call, SeedBot bot, Dictionary<string, string> config)
+    {
+        var source = (string)call.Args[0];
+        if (call.Name == "backlink")
+        {
+            return bot.BacklinkBodiesAsync(source, ~NamespaceMask.Wiki, config.GetValueOrDefault("from") ?? "",
+                destination => $"[자동] 역링크 정리 \"{source}\" -> \"{destination}\" (사유: {config["reason"]})");
+        }
+        throw new Exception();
     }
 
     public static IAsyncEnumerable<IAnchorReferer> CallFunctionScope(FunctionCall call, SeedBot bot, Dictionary<string, string> config)

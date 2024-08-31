@@ -7,6 +7,10 @@ using System.Linq;
 using System.Threading.Tasks;
 
 public record struct EditPostResult(string Document, int Rev);
+
+/// <summary>
+/// 기본 API(https://doc.theseed.io/)에서 제공하는 기능들만 제공하는 클라이언트입니다.
+/// </summary>
 public class SeedApiClient : ISeedApiClient
 {
     private readonly JsonClient _client;
@@ -17,13 +21,15 @@ public class SeedApiClient : ISeedApiClient
     public event Action<BacklinkResult>? OnBacklink;
     public EventPublisher<EditPostResult> OnPostSuccessfully { get; } = new();
     public event Func<string, string, string>? ApiPosting;
-    public string WikiUri { get; }
-
     public event Action<string>? OnError
     {
         add => _client.OnError += value;
         remove => _client.OnError -= value;
     }
+
+    public string WikiUri { get; }
+
+
 
     internal SeedApiClient(string wikiUri)
     {
@@ -49,17 +55,15 @@ public class SeedApiClient : ISeedApiClient
     /// </summary>
     /// <param name="document">편집할 문서명입니다.</param>
     /// <returns>편집을 시행할 수 있는 뷰를 반환합니다.</returns>
-    /// <inheritdoc cref="GuardDocument(string?)"/>
     /// <inheritdoc cref="GuardStatus"/>
     public Task<EditView?> GetEditAsync(string document)
     {
-        GuardDocument(document);
         return GetEditAsync_optIn(document);
     }
 
     private async Task<EditView?> GetEditAsync_optIn(string document)
     {
-        var output = await _client.GetEditAsync(document);
+        var output = await _client.GetAsync<ViewResponse>(SeedUri.GetEditUri(document));
         if (output.TryGetValue(out var item))
         {
             (string text, bool exists, string token, string status) = item;
@@ -97,7 +101,6 @@ public class SeedApiClient : ISeedApiClient
             var output = await _client.GetBacklinkFromAsync(document, @namespace, from, (int)flags);
             if (output.TryGetValue(out var item))
             {
-                GuardStatus(item.Status, nameof(document));
                 var ret = new BacklinkResult(_client, document, @namespace, flags, item);
                 OnBacklink?.Invoke(ret);
                 return ret;
@@ -139,7 +142,7 @@ public class SeedApiClient : ISeedApiClient
     /// <param name="until"></param>
     /// <param name="flags"></param>
     /// <returns></returns>
-    public async Task<BacklinkResult> GetBacklinkUntilAsync(string document, string @namespace, string until = "", BacklinkFlags flags = BacklinkFlags.All)
+    public async Task<BacklinkResult?> GetBacklinkUntilAsync(string document, string @namespace, string until = "", BacklinkFlags flags = BacklinkFlags.All)
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(@namespace);
@@ -172,22 +175,10 @@ public class SeedApiClient : ISeedApiClient
     }
     #endregion
 
-    /// <exception cref="ArgumentException"><paramref name="document"/>가 빈 문자열이거나 길이가 255를 넘습니다.</exception>
-    /// <exception cref="ArgumentNullException"><paramref name="document"/>가 null입니다.</exception>
-    private static void GuardDocument(string? document)
-    {
-        ArgumentNullException.ThrowIfNull(document);
-
-        if (document.Length == 0)
-            throw new ArgumentException("The name of document can't be null or white space.", nameof(document));
-
-        if (document.Length > 255)
-            throw new ArgumentException("The name of document can't be over 255", nameof(document));
-    }
-
     /// <exception cref="InvalidApiTokenException">Api Token이 유효하지 않습니다.</exception>
     /// <exception cref="InvalidDocumentException">이 위키에서 유효하지 않는 문서명입니다.</exception>
     /// <exception cref="AccessLevelLacksException">접근 권한이 부족합니다.</exception>
+    [Obsolete]
     private static void GuardStatus(string? status, string paramNameForDoc)
     {
         if (status == null) return;

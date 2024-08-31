@@ -3,10 +3,6 @@ using Sugarmaple.Text;
 
 internal static class SeedJsonClient
 {
-    public static Task<string> GetAsync(this JsonClient _client, string uri) => _client.GetLiteralAsync(uri);
-
-    public static Task<Option<ViewResponse>> GetEditAsync(this JsonClient _client, string document) => _client.GetAsync<ViewResponse>(SeedUri.GetEditUri(document));
-
     public static Task<Option<EditResponse>> PostEditAsync(this JsonClient _client, string document, string text, string log, string editToken) => _client.PostAsync<EditResponse, EditParameter>(
             CreateUri("edit", document).Build(), new(text, log, editToken));
 
@@ -42,4 +38,4 @@ public record struct NamespaceCountPair(string Namespace, int Count);
 /// <param name="Flags"></param>
 public record struct BacklinkPair(string Document, string Flags);
 internal record struct EditResponse(string Status, int Rev);
-internal record struct ViewResponse(string Text, bool Exists, string Token, string Status);
+public record ViewResponse(string Text, bool Exists, string Token, string Status);

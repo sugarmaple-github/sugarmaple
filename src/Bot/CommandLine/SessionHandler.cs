@@ -137,22 +137,23 @@ public class SessionActionRunner
 
     public static async Task ExecuteEdit(EditArgs args, SeedBot bot, Dictionary<string, string> config, Action saver)
     {
-        await foreach (var doc in args.Scope.ToAsyncEnumerable().SelectMany(o => CallFunctionScope_new(o, bot, config)))
-        {
-            foreach (var o in doc.QuerySelectorAll<IAnchorReferer>("*"))
-            {
-                ExecuteEditProcessing(o, args.Processing, bot, config, saver);
-            }
-        }
+        var env = new Dictionary<string, string>();
+        //await foreach (var doc in args.Scope.ToAsyncEnumerable().SelectMany(o => CallFunctionScope_new(o, bot, config)))
+        //{
+        //    foreach (var o in doc.QuerySelectorAll<IAnchorReferer>("*"))
+        //    {
+        //        ExecuteEditProcessing(o, args.Processing, bot, config, saver);
+        //    }
+        //}
 
 
-        await foreach (var o in args.Scope.ToAsyncEnumerable().SelectMany(o => CallFunctionScope(o, bot, config)))
+        await foreach (var o in args.Scope.ToAsyncEnumerable().SelectMany(o => CallFunctionScope(o, bot, config, env)))
         {
-            ExecuteEditProcessing(o, args.Processing, bot, config, saver);
+            ExecuteEditProcessing(o, args.Processing, bot, config, env, saver);
         }
     }
 
-    private static void ExecuteEditProcessing(IAnchorReferer doc, Conditional[] processing, SeedBot bot, Dictionary<string, string> config, Action saver)
+    private static void ExecuteEditProcessing(IAnchorReferer doc, Conditional[] processing, SeedBot bot, Dictionary<string, string> config, Dictionary<string, string> env, Action saver)
     {
         //몇 번 분기에서 동작하는 지 Log에 기재해야.
         foreach (var o in processing)
@@ -163,10 +164,12 @@ public class SessionActionRunner
                 {
                     case "replace":
                         var destination = (string)o.Then.Args[0];
+                        env["destination"] = destination;
                         var anchor = o.Then.Args.Length >= 2 ? (string)o.Then.Args[1] : null;
                         config["from"] = doc.OwnerDocument!.Title;
                         doc.Reference = destination;
-                        doc.Anchor = anchor;
+                        if (anchor != null)
+                            doc.Anchor = anchor;
                         saver();
                         return;
                     default:
@@ -190,18 +193,18 @@ public class SessionActionRunner
         }
     }
 
-    public static IAsyncEnumerable<Document> CallFunctionScope_new(FunctionCall call, SeedBot bot, Dictionary<string, string> config)
-    {
-        var source = (string)call.Args[0];
-        if (call.Name == "backlink")
-        {
-            return bot.BacklinkBodiesAsync(source, ~NamespaceMask.Wiki, config.GetValueOrDefault("from") ?? "",
-                destination => $"[자동] 역링크 정리 \"{source}\" -> \"{destination}\" (사유: {config["reason"]})");
-        }
-        throw new Exception();
-    }
+    //public static IAsyncEnumerable<Document> CallFunctionScope_new(FunctionCall call, SeedBot bot, Dictionary<string, string> config)
+    //{
+    //    var source = (string)call.Args[0];
+    //    if (call.Name == "backlink")
+    //    {
+    //        return bot.BacklinkBodiesAsync(source, ~NamespaceMask.Wiki, config.GetValueOrDefault("from") ?? "",
+    //            destination => $"[자동] 역링크 정리 \"{source}\" -> \"{destination}\" (사유: {config["reason"]})");
+    //    }
+    //    throw new Exception();
+    //}
 
-    public static IAsyncEnumerable<IAnchorReferer> CallFunctionScope(FunctionCall call, SeedBot bot, Dictionary<string, string> config)
+    public static IAsyncEnumerable<IAnchorReferer> CallFunctionScope(FunctionCall call, SeedBot bot, Dictionary<string, string> config, Dictionary<string, string> env)
     {
         var source = (string)call.Args[0];
         if (call.Name == "backlink")
@@ -213,7 +216,12 @@ public class SessionActionRunner
             //    //enumerator_old = b.Viewer.FindElements(By.XPath("//a[contains(@href,'Repulse%20Stream')]")).GetEnumerator();
             //}
             return bot.BacklinkReferersAsync<IAnchorReferer>(source, ~NamespaceMask.Wiki, config.GetValueOrDefault("from") ?? "",
-                destination => $"[자동] 역링크 정리 \"{source}\" -> \"{destination}\" (사유: {config["reason"]})");
+                () =>
+                $"[자동] 역링크 정리 \"{source}\" -> \"{env["destination"]}\" (사유: {config["reason"]})");
+        }
+        else if (call.Name == "search")
+        {
+
         }
         throw new Exception();
     }

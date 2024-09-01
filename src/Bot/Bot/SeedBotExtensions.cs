@@ -9,7 +9,7 @@ using System.Linq;
 
 public static class SeedBotExtensions
 {
-    public static async IAsyncEnumerable<EditView> GetBacklinksForEditAsync(this SeedBot self, string document, NamespaceMask nsMask, string from)
+    public static IAsyncEnumerable<string> GetBacklinksForEditAsync(this SeedBot self, string document, NamespaceMask nsMask, string from)
     {
         var docs = self.GetBacklinksAsync(document, from, (~nsMask).ToNames(self.WikiNamespaces)).Select(o => o.Document);
         if (document.StartsWith("분류:"))
@@ -18,44 +18,41 @@ public static class SeedBotExtensions
             var categorydocs = categorizedDocs.ToAsyncEnumerable();
             docs = docs.Concat(categorydocs);
         }
-
-        await foreach (var o in docs.GetViewsAsync(self))
-            yield return o;
+        return docs;
     }
 
-    public static async IAsyncEnumerable<EditView> GetViewsAsync(this IAsyncEnumerable<string> docs, SeedBot self)
+    public static async IAsyncEnumerable<Document> GetViewsAsync(this IAsyncEnumerable<string> docs, Func<string> logGenerator, SeedBot self)
     {
-        await foreach (var o in docs.SelectAwait(async o => await self.GetEditAsync(o)))
+        await foreach ((var resp, var title) in docs.SelectAwait(async title => (await self.GetEditAsync(title), title)).Where(o => o.Item1.Item?.Text != null).Select(o => (o.Item1.Item, o.title)))
         {
-            if (o != null)
-                yield return o;
-        }
-    }
-
-    public static async IAsyncEnumerable<Document> BacklinkBodiesAsync(this SeedBot _bot, string document, NamespaceMask @namespace, string fromValue, string log)
-    {
-        var backlinks = _bot.GetBacklinksForEditAsync(document, @namespace, fromValue);
-        await foreach (var view in backlinks)
-        {
-            var doc = DocumentFactory.Default.Parse(view.Text);
-            doc.Title = view.Document;
+            var doc = DocumentFactory.Default.Parse(resp!.Text);
+            doc.Title = title;
             yield return doc;
-            await _bot.PostEditAsync(view, doc, log);
+            await self.PostEditAsync(title, resp.Token, doc, logGenerator());
             doc.Dispose();
         }
     }
 
-    public static async IAsyncEnumerable<Document> BacklinkBodiesAsync(this SeedBot _bot, string document, NamespaceMask @namespace, string fromValue, Func<string, string> logMaker)
+    public static async Task WaitUntil(Func<bool> condition, int frequency = 25, int timeout = -1)
     {
-        var backlinks = _bot.GetBacklinksForEditAsync(document, @namespace, fromValue);
-        await foreach (var view in backlinks)
+        var waitTask = Task.Run(async () =>
         {
-            var doc = DocumentFactory.Default.Parse(view.Text);
-            doc.Title = view.Document;
-            yield return doc;
-            await _bot.PostEditAsync(view, doc, logMaker(document));
-            doc.Dispose();
-        }
+            while (!condition()) await Task.Delay(frequency);
+        });
+
+        if (waitTask != await Task.WhenAny(waitTask,
+                Task.Delay(timeout)))
+            throw new TimeoutException();
+    }
+
+    public static IAsyncEnumerable<Document> BacklinkBodiesAsync(this SeedBot _bot, string document, NamespaceMask @namespace, string fromValue, string log)
+    {
+        return BacklinkBodiesAsync(_bot, document, @namespace, fromValue, () => log);
+    }
+
+    public static IAsyncEnumerable<Document> BacklinkBodiesAsync(this SeedBot _bot, string document, NamespaceMask @namespace, string fromValue, Func<string> logGenerator)
+    {
+        return _bot.GetBacklinksForEditAsync(document, @namespace, fromValue).GetViewsAsync(logGenerator, _bot);
     }
 
     public static IAsyncEnumerable<IReferer> BacklinkReferersAsync(this SeedBot _bot, string document, NamespaceMask @namespace, string fromValue, string log)
@@ -68,11 +65,11 @@ public static class SeedBotExtensions
             return o.Reference == document;
         });
 
-    public static IAsyncEnumerable<T> BacklinkReferersAsync<T>(this SeedBot _bot, string document, NamespaceMask @namespace, string fromValue, Func<string, string> logMaker) where T : IReferer
-        => _bot.BacklinkBodiesAsync(document, @namespace, fromValue, logMaker).SelectMany(o => o.QuerySelectorAll<T>("*").ToAsyncEnumerable()).Where(o =>
+    public static IAsyncEnumerable<T> BacklinkReferersAsync<T>(this SeedBot _bot, string document, NamespaceMask @namespace, string fromValue, Func<string> logGenerator) where T : IReferer
+        => _bot.BacklinkBodiesAsync(document, @namespace, fromValue, logGenerator).SelectMany(o => o.QuerySelectorAll<T>("*").ToAsyncEnumerable()).Where(o =>
         {
             //NamuNormalizer.Default.Normalize(o);
-            return o.Reference == document;
+            return o.Reference.Trim() == document;
         });
 
     /// <summary>
@@ -214,14 +211,14 @@ public static class SeedBotExtensions
         }
     }
 
-    public static async Task ReplaceSearchAsync(this SeedBot self, string source, string destination, string target, int page = 1, string? log = null)
-    {
-        await foreach (var o in self.Crawler.SearchFullAsync(target, source, "문서").ToAsyncEnumerable().GetViewsAsync(self))
-        {
-            if (o == null) continue;
-            Debug.Assert(o.Exist); //존재하지 않는 문서를 편집할 수는 없습니다.
-            var newContent = o.Text.Replace(source, destination);
-            await o.PostEditAsync(newContent, $"[자동] '{source}' -> '{destination}' 변경 ({log})");
-        }
-    }
+    //public static async Task ReplaceSearchAsync(this SeedBot self, string source, string destination, string target, int page, Func<string> logGenerator)
+    //{
+    //    await foreach (var o in self.Crawler.SearchFullAsync(target, source, "문서").ToAsyncEnumerable().GetViewsAsync(logGenerator, self))
+    //    {
+    //        if (o == null) continue;
+    //        Debug.Assert(o.Exist); //존재하지 않는 문서를 편집할 수는 없습니다.
+    //        var newContent = o.Text.Replace(source, destination);
+    //        await o.PostEditAsync(newContent, $"[자동] '{source}' -> '{destination}' 변경 ({log})");
+    //    }
+    //}
 }

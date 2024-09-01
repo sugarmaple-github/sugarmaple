@@ -50,6 +50,22 @@ public class EditView
         //    Exist = exists;
         //    _token = token;
         //}
+
+        
+    }
+
+    public static EditView? Create(string document, Option<ViewResponse> output, SeedApiClient client)
+    {
+        if (output.TryGetValue(out var item))
+        {
+            (string text, bool exists, string token, string status) = item;
+            if (status == null)
+            {
+                return new EditView(client, document, text, exists, token);
+            }
+            return null;
+        }
+        return null;
     }
 
     /// <summary>

@@ -104,4 +104,11 @@ public class SeedBot : SeedApiClient
         var text = NamuFormatter.Default.ToMarkup(doc);
         return view.PostEditAsync(text, log);
     }
+
+    public Task<EditReport?> PostEditAsync(string title, string token, Document doc, string log)
+    {
+        DocumentPosting?.Invoke(title, doc);
+        var text = NamuFormatter.Default.ToMarkup(doc);
+        return PostEditAsync(title, text, log, token);
+    }
 }

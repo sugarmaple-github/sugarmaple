@@ -9,8 +9,8 @@ public static class ProcessorCreator
     {
         var b = o.Bot;
         var s = o.Starter;
-
-        return b.Bot.BacklinkReferersAsync<InternalLink>(source, ~NamespaceMask.Wiki, o.Starter.From ?? from, o.CreateLog);
+        throw new Exception();
+        //return b.Bot.BacklinkReferersAsync<InternalLink>(source, ~NamespaceMask.Wiki, o.Starter.From ?? from, null);
         //o.SaveLabel();
         //(source, destination) => $"[자동] 역링크 정리 \"{source}\" -> \"{destination}\" (사유: {log})")
     };
@@ -79,7 +79,7 @@ public static class ProcessorCreator
     {
         var b = o.Bot;
         var c = o.Starter;
-        await b.Bot.ReplaceSearchAsync(source, destination, target, c.Page, log);
+        //await b.Bot.ReplaceSearchAsync(source, destination, target, c.Page, log);
     };
 
     internal static OrderDelegate Config(string v, string value) => async o =>

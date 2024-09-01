@@ -14,6 +14,8 @@ public record struct EditPostResult(string Document, int Rev);
 public class SeedApiClient : ISeedApiClient
 {
     private readonly JsonClient _client;
+
+    public event Action<Option<ViewResponse>>? GotEdit;
     public event Action<EditGetError>? OnGetEditError;
     public event Action<EditPostError>? OnPostEditError;
     public event Action<string>? OnBacklinkError;
@@ -49,19 +51,13 @@ public class SeedApiClient : ISeedApiClient
     }
 
     #region Public Method
-
     /// <summary>
     /// 문서를 열람하고 편집 뷰를 반환합니다.
     /// </summary>
     /// <param name="document">편집할 문서명입니다.</param>
     /// <returns>편집을 시행할 수 있는 뷰를 반환합니다.</returns>
     /// <inheritdoc cref="GuardStatus"/>
-    public Task<EditView?> GetEditAsync(string document)
-    {
-        return GetEditAsync_optIn(document);
-    }
-
-    private async Task<EditView?> GetEditAsync_optIn(string document)
+    public async Task<Option<ViewResponse>> GetEditAsync(string document)
     {
         var output = await _client.GetAsync<ViewResponse>(SeedUri.GetEditUri(document));
         if (output.TryGetValue(out var item))
@@ -70,14 +66,16 @@ public class SeedApiClient : ISeedApiClient
             if (status == null)
             {
                 OnGetEditSuccessfully?.Invoke(document, text);
-                return new EditView(this, document, text, exists, token);
             }
-            OnGetEditError?.Invoke(new(status, true) { Document = document });
-            return null;
+            else
+                OnGetEditError?.Invoke(new(status, true) { Document = document });
         }
-        OnGetEditError?.Invoke(new(output.Error, true));
-        return null;
+        else
+            OnGetEditError?.Invoke(new(output.Error, true));
+        return output;
     }
+
+
 
     /// <summary>
     /// <paramref name="document"/>의 역링크 중에서 <paramref name="namespace" /> 이름공간에 있는 것을 반환합니다.
@@ -205,7 +203,7 @@ public interface ISeedApiClient
 {
     event Action<string, string>? OnGetEditSuccessfully;
 
-    public Task<EditView?> GetEditAsync(string document);
+    public Task<Option<ViewResponse>> GetEditAsync(string document);
     public Task<BacklinkResult?> GetBacklinkFromAsync(string document, string @namespace = "", string @from = "", BacklinkFlags flags = BacklinkFlags.All);
     public Task<EditReport?> PostEditAsync(string document, string text, string log, string token);
 }

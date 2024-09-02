@@ -26,12 +26,13 @@ public class SeedBot : SeedApiClient
     public string UserName { get; }
     public string UserDoc { get; }
 
+    [Obsolete]
     public event Action<string, Document>? OnPostSameDoc;
+    [Obsolete]
     public event Action<EditGetError>? OnLackOfPermission;
 
     public Action? OnEmergencyHappened = () => throw new Exception("Emergency Happen!");
 
-    public Dictionary<string, LogMaker> LogMakerDict { get; } = new();
     public SeedViewer? _viewer;
     public SeedViewer Viewer { get => _viewer ??= new(_trueWikiUri); }
     private string _trueWikiUri;
@@ -42,17 +43,6 @@ public class SeedBot : SeedApiClient
     {
         _crawler = new(wikiUri);
         _trueWikiUri = wikiUri;
-        OnGetEditError += o =>
-        {
-            if (o.IsLackOfPermission)
-            {
-                OnLackOfPermission?.Invoke(o);
-            }
-            else
-            {
-
-            }
-        };
         OnPostSuccessfully.Event += o => NotifyEdit();
         OnPostEditError += o =>
          {

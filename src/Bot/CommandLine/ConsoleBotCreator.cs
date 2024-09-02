@@ -81,11 +81,14 @@ internal class ConsoleBotHandler
         //Config.SetEditResult(revised.OuterMarkup);
     }
 
-    public void OnBacklink(BacklinkResult result)
+    public void OnBacklink(string document, Option<BacklinkResponse> resultOpt)
     {
-        var sb = new StringBuilder();
-        sb.Append($"'{result.Document}' 열람 결과:\n").AppendJoin('\n', result.Namespaces.Select(o => $" - {o.Namespace} ({o.Count})"));
-        Console.WriteLine(sb);
+        if (resultOpt.TryGetValue(out var result))
+        {
+            var sb = new StringBuilder();
+            sb.Append($"'{document}' 열람 결과:\n").AppendJoin('\n', result.Namespaces.Select(o => $" - {o.Namespace} ({o.Count})"));
+            Console.WriteLine(sb);
+        }
     }
 
     public void OnLackOfPermission(EditGetError obj)
@@ -120,9 +123,12 @@ internal class ConsoleBotCreator
         bot.ApiPosting += state.ApiPosting;
         bot.OnPostSameDoc += state.OnEditWhenNoDiff;
         bot.OnPostSuccessfully.Event += state.OnEveryPost;
-        bot.OnLackOfPermission += state.OnLackOfPermission;
-        bot.OnBacklink += state.OnBacklink;
-        bot.LogMakerDict["ReplaceBacklink"] = args => $"[자동] 역링크 정리 \"{args[0]}\" -> \"{args[1]}\" (사유: {args[2]})";
+        bot.OnGetEditError += o =>
+        {
+            if (o.IsLackOfPermission)
+                state.OnLackOfPermission(o);
+        };
+        bot.GotBacklink += state.OnBacklink;
         return state;
     }
 }

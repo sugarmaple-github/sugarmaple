@@ -15,12 +15,16 @@ public class SeedApiClient : ISeedApiClient
 {
     private readonly JsonClient _client;
 
+
     public event Action<Option<ViewResponse>>? GotEdit;
+    [Obsolete]
     public event Action<EditGetError>? OnGetEditError;
+    [Obsolete]
     public event Action<EditPostError>? OnPostEditError;
+    [Obsolete]
     public event Action<string>? OnBacklinkError;
     public event Action<string, string>? OnGetEditSuccessfully;
-    public event Action<BacklinkResult>? OnBacklink;
+    public event Action<string, Option<BacklinkResponse>>? GotBacklink;
     public EventPublisher<EditPostResult> OnPostSuccessfully { get; } = new();
     public event Func<string, string, string>? ApiPosting;
     public event Action<string>? OnError
@@ -87,24 +91,25 @@ public class SeedApiClient : ISeedApiClient
     /// <returns>역링크의 결과 객체를 반환합니다.</returns>
     /// <inheritdoc cref="GuardStatus"/>
     /// <inheritdoc cref="GetBacklinkFromAsync(string, string, string, BacklinkFlags)"/>
-    public Task<BacklinkResult?> GetBacklinkFromAsync(string document, string @namespace = "", string @from = "", BacklinkFlags flags = BacklinkFlags.All)
+    public Task<Option<BacklinkResponse>> GetBacklinkFromAsync(string document, string @namespace = "", string @from = "", BacklinkFlags flags = BacklinkFlags.All)
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(@namespace);
         ArgumentNullException.ThrowIfNull(@from);
         return GetBacklinkFromAsyncIn(document, @namespace, from, flags);
 
-        async Task<BacklinkResult?> GetBacklinkFromAsyncIn(string document, string @namespace = "", string @from = "", BacklinkFlags flags = BacklinkFlags.All)
+        async Task<Option<BacklinkResponse>> GetBacklinkFromAsyncIn(string document, string @namespace = "", string @from = "", BacklinkFlags flags = BacklinkFlags.All)
         {
             var output = await _client.GetBacklinkFromAsync(document, @namespace, from, (int)flags);
-            if (output.TryGetValue(out var item))
-            {
-                var ret = new BacklinkResult(_client, document, @namespace, flags, item);
-                OnBacklink?.Invoke(ret);
-                return ret;
-            }
-            OnBacklinkError?.Invoke(output.Error);
-            return null;
+            GotBacklink?.Invoke(document, output);
+            //if (output.TryGetValue(out var item))
+            //{
+            //    var ret = new BacklinkResult(_client, document, @namespace, flags, item);
+            //    OnBacklink?.Invoke(ret);
+            //    return ret;
+            //}
+            //OnBacklinkError?.Invoke(output.Error);
+            return output;
         }
     }
 
@@ -149,14 +154,13 @@ public class SeedApiClient : ISeedApiClient
         var output = await _client.GetBacklinkUntilAsync(document, @namespace, until, (int)flags);
         if (output.TryGetValue(out var item))
         {
-            GuardStatus(item.Status, nameof(document));
             var ret = new BacklinkResult(_client, document, @namespace, flags, item);
             return ret;
         }
         return null;
     }
-    internal Task<BacklinkResult> GetBacklinkUntilAsync(string document, SeedNamespace @namespace, string until = "", BacklinkFlags flags = BacklinkFlags.All) =>
-        GetBacklinkUntilAsync(document, @namespace.Name, until, flags);
+    //internal Task<BacklinkResult> GetBacklinkUntilAsync(string document, SeedNamespace @namespace, string until = "", BacklinkFlags flags = BacklinkFlags.All) =>
+    //    GetBacklinkUntilAsync(document, @namespace.Name, until, flags);
 
     /// <summary>
     /// API Token을 갱신합니다.
@@ -204,7 +208,7 @@ public interface ISeedApiClient
     event Action<string, string>? OnGetEditSuccessfully;
 
     public Task<Option<ViewResponse>> GetEditAsync(string document);
-    public Task<BacklinkResult?> GetBacklinkFromAsync(string document, string @namespace = "", string @from = "", BacklinkFlags flags = BacklinkFlags.All);
+    public Task<Option<BacklinkResponse>> GetBacklinkFromAsync(string document, string @namespace = "", string @from = "", BacklinkFlags flags = BacklinkFlags.All);
     public Task<EditReport?> PostEditAsync(string document, string text, string log, string token);
 }
 
@@ -217,9 +221,9 @@ public static class SeedApiClientExtensions
         async IAsyncEnumerable<BacklinkPair> Inner(string? from)
         {
             if (from == null) yield break;
-            var backlink = await self.GetBacklinkFromAsync(document, @namespace, from);
-            if (backlink == null) yield break;
-            await foreach (var o in backlink.Backlinks.ToAsyncEnumerable().Concat(Inner(backlink.From)))
+            var backlinkOpt = await self.GetBacklinkFromAsync(document, @namespace, from);
+            if (backlinkOpt.Item == null) yield break;
+            await foreach (var o in backlinkOpt.Item.Backlinks.ToAsyncEnumerable().Concat(Inner(backlinkOpt.Item.From)))
                 yield return o;
         }
     }
@@ -227,11 +231,11 @@ public static class SeedApiClientExtensions
 
     public async static IAsyncEnumerable<BacklinkPair> GetBacklinksAsync(this ISeedApiClient self, string document, string from, IEnumerable<string> denialNamespaces)
     {
-        var first = await self.GetBacklinkFromAsync(document, "", from);
-        if (first == null) yield break;
-
+        var firstOpt = await self.GetBacklinkFromAsync(document, "", from);
+        if (firstOpt.Item == null) yield break;
+        var first = firstOpt.Item;
         var namespaces = first.Namespaces;
-        if (namespaces.Count == 0) yield break;
+        if (namespaces.Length == 0) yield break;
 
         var ret = Enumerable.Empty<BacklinkPair>().ToAsyncEnumerable();
         if (!denialNamespaces.Contains(namespaces[0].Namespace))

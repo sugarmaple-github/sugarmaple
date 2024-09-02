@@ -39,53 +39,53 @@ public class BacklinkResult
     public string? From { get; }
     public string? Until { get; }
 
-    public async Task<BacklinkResult> GetPrevAsync()
-    {
-        if (Until == null)
-            throw new InvalidOperationException("There aren't previous item. (Until == null)");
-        var result = await _client.GetBacklinkUntilAsync(Document, _namespace, Until, (int)Flags);
-        if (result.TryGetValue(out var item))
-        {
-            var ret = new BacklinkResult(_client, Document, _namespace, Flags, item);
-            return ret;
-        }
-        return null;
-    }
+    //public async Task<BacklinkResult> GetPrevAsync()
+    //{
+    //    if (Until == null)
+    //        throw new InvalidOperationException("There aren't previous item. (Until == null)");
+    //    var result = await _client.GetBacklinkUntilAsync(Document, _namespace, Until, (int)Flags);
+    //    if (result.TryGetValue(out var item))
+    //    {
+    //        var ret = new BacklinkResult(_client, Document, _namespace, Flags, item);
+    //        return ret;
+    //    }
+    //    return null;
+    //}
 
-    public async Task<BacklinkResult> GetNextAsync()
-    {
-        if (From == null)
-            throw new InvalidOperationException("There aren't next item. (From == null)");
-        var result = await _client.GetBacklinkFromAsync(Document, _namespace, From, (int)Flags);
-        if (result.TryGetValue(out var item))
-        {
-            var ret = new BacklinkResult(_client, Document, _namespace, Flags, item);
-            return ret;
-        }
-        return null;
-    }
+    //public async Task<BacklinkResult> GetNextAsync()
+    //{
+    //    if (From == null)
+    //        throw new InvalidOperationException("There aren't next item. (From == null)");
+    //    var result = await _client.GetBacklinkFromAsync(Document, _namespace, From, (int)Flags);
+    //    if (result.TryGetValue(out var item))
+    //    {
+    //        var ret = new BacklinkResult(_client, Document, _namespace, Flags, item);
+    //        return ret;
+    //    }
+    //    return null;
+    //}
 
-    public bool TryGetNext([NotNullWhen(true)] out BacklinkResult? result)
-    {
-        if (From == null)
-        {
-            result = null;
-            return false;
-        }
-        result = GetNextAsync().Result;
-        return true;
-    }
+    //public bool TryGetNext([NotNullWhen(true)] out BacklinkResult? result)
+    //{
+    //    if (From == null)
+    //    {
+    //        result = null;
+    //        return false;
+    //    }
+    //    result = GetNextAsync().Result;
+    //    return true;
+    //}
 
-    public bool TryGetNextAsync([NotNullWhen(true)] out Task<BacklinkResult>? task)
-    {
-        if (From == null)
-        {
-            task = null;
-            return false;
-        }
-        task = GetNextAsync();
-        return true;
-    }
+    //public bool TryGetNextAsync([NotNullWhen(true)] out Task<BacklinkResult>? task)
+    //{
+    //    if (From == null)
+    //    {
+    //        task = null;
+    //        return false;
+    //    }
+    //    task = GetNextAsync();
+    //    return true;
+    //}
 
     private const string DefaultNamespace = "문서";
 

@@ -21,16 +21,6 @@ public class BotEventHandler : IDisposable
 
     public void Dispose() => RemoveEvent();
 
-    public event Action<EditGetError> OnLackOfPermission
-    {
-        add
-        {
-            _bot.OnLackOfPermission += value;
-            _removeEvent += () => _bot.OnLackOfPermission -= value;
-        }
-        remove { _bot.OnLackOfPermission -= value; }
-    }
-
     public event Action<string, string> OnGetEditSuccessfully
     {
         add

@@ -18,7 +18,7 @@ internal static class SeedJsonClient
 
 internal record struct EditParameter(string Text, string Log, string Token);
 
-internal record struct BacklinkResponse(
+public record BacklinkResponse(
     NamespaceCountPair[] Namespaces,
     BacklinkPair[] Backlinks,
     string From,

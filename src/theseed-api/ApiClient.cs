@@ -25,17 +25,10 @@ public class SeedApiClient : ISeedApiClient
     public event Action<string>? OnBacklinkError;
     public event Action<string, string>? OnGetEditSuccessfully;
     public event Action<string, Option<BacklinkResponse>>? GotBacklink;
-    public EventPublisher<EditPostResult> OnPostSuccessfully { get; } = new();
+    public event Action<EditPostResult>? OnPostSuccessfully;
     public event Func<string, string, string>? ApiPosting;
-    public event Action<string>? OnError
-    {
-        add => _client.OnError += value;
-        remove => _client.OnError -= value;
-    }
 
     public string WikiUri { get; }
-
-
 
     internal SeedApiClient(string wikiUri)
     {
@@ -60,7 +53,6 @@ public class SeedApiClient : ISeedApiClient
     /// </summary>
     /// <param name="document">편집할 문서명입니다.</param>
     /// <returns>편집을 시행할 수 있는 뷰를 반환합니다.</returns>
-    /// <inheritdoc cref="GuardStatus"/>
     public async Task<Option<ViewResponse>> GetEditAsync(string document)
     {
         var output = await _client.GetAsync<ViewResponse>(SeedUri.GetEditUri(document));
@@ -89,7 +81,6 @@ public class SeedApiClient : ISeedApiClient
     /// <param name="from">어떤 문자열부터의 역링크 목록을 확인할 것인지 반환합니다.</param>
     /// <param name="flags">역링크의 타입을 정합니다.</param>
     /// <returns>역링크의 결과 객체를 반환합니다.</returns>
-    /// <inheritdoc cref="GuardStatus"/>
     /// <inheritdoc cref="GetBacklinkFromAsync(string, string, string, BacklinkFlags)"/>
     public Task<Option<BacklinkResponse>> GetBacklinkFromAsync(string document, string @namespace = "", string @from = "", BacklinkFlags flags = BacklinkFlags.All)
     {
@@ -162,45 +153,11 @@ public class SeedApiClient : ISeedApiClient
     //internal Task<BacklinkResult> GetBacklinkUntilAsync(string document, SeedNamespace @namespace, string until = "", BacklinkFlags flags = BacklinkFlags.All) =>
     //    GetBacklinkUntilAsync(document, @namespace.Name, until, flags);
 
-    /// <summary>
-    /// API Token을 갱신합니다.
-    /// </summary>
-    /// <param name="apiToken">갱신할 API 토큰.</param>
-    public void UpdateApiToken(string apiToken)
+    private void UpdateApiToken(string apiToken)
     {
-        foreach (var c in apiToken)
-        {
-            if (!char.IsAscii(c))
-                throw new ArgumentException($"{nameof(apiToken)} must contain only ASCII characters.", nameof(apiToken));
-        }
         _client.UpdateAuthHeader($"Bearer {apiToken}");
     }
     #endregion
-
-    /// <exception cref="InvalidApiTokenException">Api Token이 유효하지 않습니다.</exception>
-    /// <exception cref="InvalidDocumentException">이 위키에서 유효하지 않는 문서명입니다.</exception>
-    /// <exception cref="AccessLevelLacksException">접근 권한이 부족합니다.</exception>
-    [Obsolete]
-    private static void GuardStatus(string? status, string paramNameForDoc)
-    {
-        if (status == null) return;
-        //if (status == "권한이 부족합니다.")
-        //    throw new InvalidApiTokenException($"Api token is not valid.", status);
-        if (status == "문서 이름이 올바르지 않습니다.")
-            throw new InvalidDocumentException(paramNameForDoc, status);
-        //if (status.StartsWith("편집"))
-        //    throw new AccessLevelLacksException(status);
-    }
-}
-
-public class EventPublisher<T>
-{
-    public event Action<T> Event;
-
-    public void Invoke(T args)
-    {
-        Event?.Invoke(args);
-    }
 }
 
 public interface ISeedApiClient

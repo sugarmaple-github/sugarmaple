@@ -121,12 +121,28 @@ internal class ConsoleBotCreator
         bot.OnGetEditSuccessfully += state.BeforeEveryEdit;
         bot.DocumentPosting += state.DocumentPosting;
         bot.ApiPosting += state.ApiPosting;
-        bot.OnPostSameDoc += state.OnEditWhenNoDiff;
-        bot.OnPostSuccessfully.Event += state.OnEveryPost;
+        //bot.OnPostSameDoc += state.OnEditWhenNoDiff;
+        bot.OnPostSuccessfully += state.OnEveryPost;
         bot.OnGetEditError += o =>
         {
             if (o.IsLackOfPermission)
                 state.OnLackOfPermission(o);
+        };
+        bot.OnPostEditError += o =>
+        {
+            if (o.HasSameDocumentContent)
+            {
+                //OnPostSameDoc?.Invoke(o.Document, docBody);
+            }
+            else if (o.InvalidRequestBody)
+            {
+                Console.WriteLine("Invalid Request Body: 너무 깁니다. 수동으로 편집해주세요.");
+            }
+        };
+        bot.OnBacklinkError += o =>
+        {
+            Console.WriteLine("역링크 도중에 에러가 발생했습니다.");
+            Console.WriteLine(o);
         };
         bot.GotBacklink += state.OnBacklink;
         return state;

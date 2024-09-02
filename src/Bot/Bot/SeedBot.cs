@@ -26,11 +26,6 @@ public class SeedBot : SeedApiClient
     public string UserName { get; }
     public string UserDoc { get; }
 
-    [Obsolete]
-    public event Action<string, Document>? OnPostSameDoc;
-    [Obsolete]
-    public event Action<EditGetError>? OnLackOfPermission;
-
     public Action? OnEmergencyHappened = () => throw new Exception("Emergency Happen!");
 
     public SeedViewer? _viewer;
@@ -43,23 +38,7 @@ public class SeedBot : SeedApiClient
     {
         _crawler = new(wikiUri);
         _trueWikiUri = wikiUri;
-        OnPostSuccessfully.Event += o => NotifyEdit();
-        OnPostEditError += o =>
-         {
-             if (o.HasSameDocumentContent)
-             {
-                 //OnPostSameDoc?.Invoke(o.Document, docBody);
-             }
-             else if (o.InvalidRequestBody)
-             {
-                 Console.WriteLine("Invalid Request Body: 너무 깁니다. 수동으로 편집해주세요.");
-             }
-         };
-        OnBacklinkError += o =>
-        {
-            Console.WriteLine("역링크 도중에 에러가 발생했습니다.");
-            Console.WriteLine(o);
-        };
+        OnPostSuccessfully += o => NotifyEdit();
 
         UserDoc = "사용자:" + userName;
         UserName = userName;

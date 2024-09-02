@@ -1,8 +1,8 @@
 ﻿namespace Sugarmaple.TheSeed.Api;
+
+using Sugarmaple.Text;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -91,41 +91,34 @@ public class SeedApiClient : ISeedApiClient
 
         async Task<Option<BacklinkResponse>> GetBacklinkFromAsyncIn(string document, string @namespace = "", string @from = "", BacklinkFlags flags = BacklinkFlags.All)
         {
-            var output = await _client.GetBacklinkFromAsync(document, @namespace, from, (int)flags);
+            var output = await _client.GetAsync<BacklinkResponse>(SeedUri.GetBacklinkFrom(document, @namespace, from, (int)flags));
             GotBacklink?.Invoke(document, output);
-            //if (output.TryGetValue(out var item))
-            //{
-            //    var ret = new BacklinkResult(_client, document, @namespace, flags, item);
-            //    OnBacklink?.Invoke(ret);
-            //    return ret;
-            //}
-            //OnBacklinkError?.Invoke(output.Error);
             return output;
         }
     }
 
-    public Task<EditReport?> PostEditAsync(string document, string text, string log, string token) =>
-        PostEditAsync_In(document, text, log, token);
-
-    private async Task<EditReport?> PostEditAsync_In(string document, string text, string log, string token)
+    public async Task<Option<EditResponse>> PostEditAsync(string document, string text, string log, string token)
     {
         var intercepted = ApiPosting?.Invoke(document, text) ?? text;
-        var output = await _client.PostEditAsync(document, intercepted, log, token);
+        var output = await _client.PostAsync<EditResponse, EditParameter>(
+            CreateUri("edit", document).Build(), new(text, log, token));
         if (output.TryGetValue(out var item))
         {
             (var status, var rev) = item;
             if (status == "success")
             {
                 OnPostSuccessfully?.Invoke(new(document, rev));
-                return new(rev);
             }
-            OnPostEditError?.Invoke(new(status, true, document));
-            return null;
+            else
+                OnPostEditError?.Invoke(new(status, true, document));
         }
-        OnPostEditError?.Invoke(new(output.Error, false, document));
-        return null;
+        else
+            OnPostEditError?.Invoke(new(output.Error, false, document));
+        return output;
     }
 
+    private static RelativeUri CreateUri() => RelativeUri.Create("api");
+    private static RelativeUri CreateUri(string path, string document) => CreateUri().AddPath(path).AddPath(Uri.EscapeDataString(document));
 
 
     /// <summary>
@@ -136,22 +129,15 @@ public class SeedApiClient : ISeedApiClient
     /// <param name="until"></param>
     /// <param name="flags"></param>
     /// <returns></returns>
-    public async Task<BacklinkResult?> GetBacklinkUntilAsync(string document, string @namespace, string until = "", BacklinkFlags flags = BacklinkFlags.All)
+    public async Task<Option<BacklinkResponse>> GetBacklinkUntilAsync(string document, string @namespace, string until = "", BacklinkFlags flags = BacklinkFlags.All)
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(@namespace);
         ArgumentNullException.ThrowIfNull(until);
 
-        var output = await _client.GetBacklinkUntilAsync(document, @namespace, until, (int)flags);
-        if (output.TryGetValue(out var item))
-        {
-            var ret = new BacklinkResult(_client, document, @namespace, flags, item);
-            return ret;
-        }
-        return null;
+        var output = await _client.GetAsync<BacklinkResponse>(SeedUri.GetBacklinkUntil(document, @namespace, until, (int)flags));
+        return output;
     }
-    //internal Task<BacklinkResult> GetBacklinkUntilAsync(string document, SeedNamespace @namespace, string until = "", BacklinkFlags flags = BacklinkFlags.All) =>
-    //    GetBacklinkUntilAsync(document, @namespace.Name, until, flags);
 
     private void UpdateApiToken(string apiToken)
     {
@@ -166,7 +152,7 @@ public interface ISeedApiClient
 
     public Task<Option<ViewResponse>> GetEditAsync(string document);
     public Task<Option<BacklinkResponse>> GetBacklinkFromAsync(string document, string @namespace = "", string @from = "", BacklinkFlags flags = BacklinkFlags.All);
-    public Task<EditReport?> PostEditAsync(string document, string text, string log, string token);
+    public Task<Option<EditResponse>> PostEditAsync(string document, string text, string log, string token);
 }
 
 public static class SeedApiClientExtensions
@@ -213,33 +199,7 @@ public static class SeedApiClientExtensions
     }
 }
 
-/// <summary>
-/// 역링크 검색 옵션을 지정합니다.
-/// </summary>
-[Flags]
-public enum BacklinkFlags : byte
-{
-    /// <summary>
-    /// 모든 결과를 봅니다.
-    /// </summary>
-    All = 0,
-    /// <summary>
-    /// 링크된 역링크만 검색합니다.
-    /// </summary>
-    Link = 1,
-    /// <summary>
-    /// 파일로서 참조하는 역링크만 검색합니다.
-    /// </summary>
-    File = 2,
-    /// <summary>
-    /// include된 역링크만 검색합니다.
-    /// </summary>
-    Include = 4,
-    /// <summary>
-    /// 리다이렉트하는 역링크만 검색합니다.
-    /// </summary>
-    Redirect = 8,
-}
+
 
 public class EditPostError
 {
@@ -258,40 +218,4 @@ public class EditPostError
     public bool HasEditConflict => Msg == "편집 도중에 다른 사용자가 먼저 편집을 했습니다.";
     public bool InvalidRequestBody => Msg == "invalid request body";
 
-}
-
-internal class TaskDelayProcessor
-{
-    private readonly Thread _thread;
-    private readonly Stopwatch _stopwatch = new();
-    private readonly BlockingCollection<Task> _queue = new();
-
-    public TaskDelayProcessor()
-    {
-        _thread = new(Operate);
-        _thread.Start();
-    }
-
-    private void Operate()
-    {
-        while (true)
-        {
-            _stopwatch.Restart();
-            var task = _queue.Take();
-            task.Start();
-            task.Wait();
-            _stopwatch.Stop();
-
-            var sleepTime = TimeSpan.FromSeconds(1) - _stopwatch.Elapsed;
-            if (sleepTime > TimeSpan.Zero)
-                Thread.Sleep(sleepTime);
-        }
-    }
-
-    internal Task<T> Enqueue<T>(Task<T> task)
-    {
-        var queueTask = task.ContinueWith(t => t.Result);
-        _queue.Add(task);
-        return queueTask;
-    }
 }

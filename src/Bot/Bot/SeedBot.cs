@@ -66,15 +66,7 @@ public class SeedBot : SeedApiClient
             }
     }
 
-
-    public Task<EditReport?> PostEditAsync(EditView view, Document doc, string log)
-    {
-        DocumentPosting?.Invoke(view.Document, doc);
-        var text = NamuFormatter.Default.ToMarkup(doc);
-        return view.PostEditAsync(text, log);
-    }
-
-    public Task<EditReport?> PostEditAsync(string title, string token, Document doc, string log)
+    public Task<Option<EditResponse>> PostEditAsync(string title, string token, Document doc, string log)
     {
         DocumentPosting?.Invoke(title, doc);
         var text = NamuFormatter.Default.ToMarkup(doc);

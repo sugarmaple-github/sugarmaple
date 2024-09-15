@@ -25,10 +25,10 @@ public class BotEventHandler : IDisposable
     {
         add
         {
-            _bot.OnGetEditSuccessfully += value;
-            _removeEvent += () => _bot.OnGetEditSuccessfully -= value;
+            _bot.GotEditSuccessfully += value;
+            _removeEvent += () => _bot.GotEditSuccessfully -= value;
         }
-        remove { _bot.OnGetEditSuccessfully -= value; }
+        remove { _bot.GotEditSuccessfully -= value; }
     }
 
     //public event Action<EditPostResult> OnPostSuccessfully
@@ -45,10 +45,10 @@ public class BotEventHandler : IDisposable
     {
         add
         {
-            _bot.OnPostEditError += value;
-            _removeEvent += () => _bot.OnPostEditError -= value;
+            _bot.PostedEditError += value;
+            _removeEvent += () => _bot.PostedEditError -= value;
         }
-        remove { _bot.OnPostEditError -= value; }
+        remove { _bot.PostedEditError -= value; }
     }
 
 }

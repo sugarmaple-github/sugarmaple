@@ -36,6 +36,11 @@ public class SeedCrawler
         _driver = CreateDriver();
     }
 
+    ~SeedCrawler()
+    {
+        _driver.Close();
+    }
+
     public ChromeDriver CreateDriver() => new(_service, _chromeOptions);
 
     public RecentChanges GetRecentChanges(LogType logType = LogType.All)
@@ -241,7 +246,7 @@ public class SeedCrawler
         var count = 0;
         OnSearch?.Invoke(page);
         var section = GoToUrlAndWaitUntil($"Search?target={target}&q={Uri.EscapeDataString(q)}&namespace={@namespace}&page={page}",
-            "//article//div[4]/div/section");
+            "//article//section");
         var countText = section.FindElement(By.XPath("./preceding-sibling::div[1]")).Text;
         var first = countText.IndexOf("전체 ") + 3;
         var last = countText.IndexOf(" 건");
@@ -353,6 +358,11 @@ public class SeedViewer : ChromeDriver
     {
         BaseAddress = baseAddress.TrimEnd('/') + '/';
         //options.AddArguments("--auto-open-devtools-for-tabs");
+    }
+
+    ~SeedViewer()
+    {
+        _driver.Close();
     }
 
     public void ShowDiff(string doc, int rev) => ShowDiff(doc, rev, rev - 1);

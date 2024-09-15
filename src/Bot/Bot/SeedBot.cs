@@ -38,7 +38,7 @@ public class SeedBot : SeedApiClient
     {
         _crawler = new(wikiUri);
         _trueWikiUri = wikiUri;
-        OnPostSuccessfully += o => NotifyEdit();
+        PostedSuccessfully += o => NotifyEdit();
 
         UserDoc = "사용자:" + userName;
         UserName = userName;

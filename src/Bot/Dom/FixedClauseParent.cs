@@ -14,7 +14,10 @@ public abstract class ParentClause : Clause, IParentElement<Clause>
             _children = value;
             _children.Parent = this;
             foreach (var o in _children)
+            {
                 o.Parent = this;
+                o.OwnerDocument = OwnerDocument;
+            }
         }
     }
 

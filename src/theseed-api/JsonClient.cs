@@ -60,23 +60,6 @@ internal class JsonClient
         return deserialized;
     }
 
-    private async Task<TOut?> DeserializeAsync_new<TOut>(Stream stream)
-    {
-        _attemptCount++;
-        try
-        {
-            var result = await JsonSerializer.DeserializeAsync<TOut>(stream, _deserializerOptions);
-            _attemptCount = 0;
-            return result!;
-        }
-        catch (JsonException)
-        {
-            var error = ToString(stream);
-            OnError?.Invoke(error);
-            return default(TOut);
-        }
-    }
-
     private async Task<Option<TOut>> DeserializeAsync<TOut>(Stream stream)
     {
         _attemptCount++;

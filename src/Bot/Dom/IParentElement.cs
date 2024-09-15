@@ -22,7 +22,34 @@ public static class ParentElementExtensions
 
     public static void AppendChild<TChild>(this IParentElement<TChild> _this, TChild aChild) where TChild : IElement
     {
+        if (_this is Document doc)
+        {
+            aChild.OwnerDocument = doc;
+            if (aChild is IParentElement parent)
+            {
+                var list = new List<IElement>();
+                EnumerateNode(parent, list);
+                foreach (var o in list)
+                    o.OwnerDocument = doc;
+            }
+        }
         _this.Children.Add(aChild);
+    }
+
+    static void EnumerateNode<T>(IParentElement parent, List<T> ret)
+    {
+        var children = parent.Children.ToArray();
+        foreach (var child in children)
+        {
+            if (child is T asT)
+            {
+                ret.Add(asT);
+            }
+            if (child is IParentElement childAsParent)
+            {
+                EnumerateNode(childAsParent, ret);
+            }
+        }
     }
 
     public static void InsertBefore<TChild>(this IParentElement<TChild> _this, TChild newNode, TChild? referenceNode) where TChild : IElement

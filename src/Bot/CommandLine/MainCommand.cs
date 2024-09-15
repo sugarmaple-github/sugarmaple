@@ -3,7 +3,6 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.CommandLine;
-using System.CommandLine.Parsing;
 
 public class MainCommand : RootCommand
 {

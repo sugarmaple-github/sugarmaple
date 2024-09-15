@@ -1,8 +1,8 @@
 ﻿namespace Sugarmaple.Bot.CommandLine;
 
 using javax.xml.transform;
+using net.sf.saxon.expr.parser;
 using net.sf.saxon.functions;
-using Sugarmaple.TheSeed.Namumark;
 using System;
 using System.IO;
 
@@ -47,7 +47,7 @@ public class SessionHandler
         }
     }
 
-    private static Task ExecuteAction(SessionAction action, SeedBot bot, Dictionary<string, string> config, Action saveHandler)
+    private static Task ExecuteAction(SessionAction action, SeedBot bot, Dictionary<string, object> config, Action saveHandler)
     {
         return SessionActionRunner.Execute(action, bot, config, saveHandler);
     }
@@ -110,119 +110,4 @@ public class SessionHandler
     //        saved.Result = new();
     //    }
     //}
-}
-
-public class SessionActionRunner
-{
-    public static async Task Execute(SessionAction sessionAction, SeedBot bot, Dictionary<string, string> config, Action saveHandler)
-    {
-        if (sessionAction.Type == "config")
-        {
-            ExecuteConfig((ConfigArgs)sessionAction.Args, config);
-        }
-        else if (sessionAction.Type == "edit")
-        {
-            await ExecuteEdit((EditArgs)sessionAction.Args, bot, config, saveHandler);
-        }
-        else
-        {
-            throw new Exception();
-        }
-    }
-
-    private static void ExecuteConfig(ConfigArgs args, Dictionary<string, string> config)
-    {
-        config[args.Key] = args.Value;
-    }
-
-    public static async Task ExecuteEdit(EditArgs args, SeedBot bot, Dictionary<string, string> config, Action saver)
-    {
-        var env = new Dictionary<string, string>();
-        //await foreach (var doc in args.Scope.ToAsyncEnumerable().SelectMany(o => CallFunctionScope_new(o, bot, config)))
-        //{
-        //    foreach (var o in doc.QuerySelectorAll<IAnchorReferer>("*"))
-        //    {
-        //        ExecuteEditProcessing(o, args.Processing, bot, config, saver);
-        //    }
-        //}
-
-
-        await foreach (var o in args.Scope.ToAsyncEnumerable().SelectMany(o => CallFunctionScope(o, bot, config, env)))
-        {
-            ExecuteEditProcessing(o, args.Processing, bot, config, env, saver);
-        }
-    }
-
-    private static void ExecuteEditProcessing(IAnchorReferer doc, Conditional[] processing, SeedBot bot, Dictionary<string, string> config, Dictionary<string, string> env, Action saver)
-    {
-        //몇 번 분기에서 동작하는 지 Log에 기재해야.
-        foreach (var o in processing)
-        {
-            if (CallFunctionCondition(o.Condition, bot, doc))
-            {
-                switch (o.Then.Name)
-                {
-                    case "replace":
-                        var destination = (string)o.Then.Args[0];
-                        env["destination"] = destination;
-                        var anchor = o.Then.Args.Length >= 2 ? (string)o.Then.Args[1] : null;
-                        config["from"] = doc.OwnerDocument!.Title;
-                        doc.Reference = destination;
-                        if (anchor != null)
-                            doc.Anchor = anchor;
-                        saver();
-                        return;
-                    default:
-                        throw new Exception();
-                }
-            }
-        }
-    }
-
-    public static bool CallFunctionCondition(FunctionCall call, SeedBot bot, IAnchorReferer doc)
-    {
-        var args = call.Args;
-        switch (call.Name)
-        {
-            case "input":
-                bot.Viewer.ShowView(doc.OwnerDocument!.Title, true);
-                bot.Viewer.SearchRoutine($"//a[contains(@href,'{Uri.EscapeDataString(doc.Reference)}')]");
-                return Console.ReadLine() == (string)args[0];
-            case "true": return true;
-            default: throw new Exception();
-        }
-    }
-
-    //public static IAsyncEnumerable<Document> CallFunctionScope_new(FunctionCall call, SeedBot bot, Dictionary<string, string> config)
-    //{
-    //    var source = (string)call.Args[0];
-    //    if (call.Name == "backlink")
-    //    {
-    //        return bot.BacklinkBodiesAsync(source, ~NamespaceMask.Wiki, config.GetValueOrDefault("from") ?? "",
-    //            destination => $"[자동] 역링크 정리 \"{source}\" -> \"{destination}\" (사유: {config["reason"]})");
-    //    }
-    //    throw new Exception();
-    //}
-
-    public static IAsyncEnumerable<IAnchorReferer> CallFunctionScope(FunctionCall call, SeedBot bot, Dictionary<string, string> config, Dictionary<string, string> env)
-    {
-        var source = (string)call.Args[0];
-        if (call.Name == "backlink")
-        {
-            //b.OnGetEditSuccessfully += (document, text) =>
-            //{
-            //    b.Bot.Viewer.ShowView(document, true);
-            //    searchRoutine = b.Bot.Viewer.SearchRoutine($"//a[contains(@href,'{Uri.EscapeDataString(source)}')]");
-            //    //enumerator_old = b.Viewer.FindElements(By.XPath("//a[contains(@href,'Repulse%20Stream')]")).GetEnumerator();
-            //}
-            return bot.BacklinkReferersAsync<IAnchorReferer>(source, ~NamespaceMask.Wiki, config.GetValueOrDefault("from") ?? "",
-                () =>
-                $"[자동] 역링크 정리 \"{source}\" -> \"{env["destination"]}\" (사유: {config["reason"]})");
-        }
-        else if (call.Name == "search")
-        {
-
-        }
-        throw new Exception();
-    }
 }

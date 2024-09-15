@@ -144,8 +144,16 @@ public class ElementList<T> : IList<T>, IReadOnlyList<T> where T : IElement
 
     public void Insert(int index, T item)
     {
-        item.AsWeak().Parent = Parent;
-        ((IList<T>)_items).Insert(index, item);
+        var weakItem = item.AsWeak();
+        weakItem.Parent = Parent;
+        if (Parent is Document doc)
+        {
+            weakItem.OwnerDocument = doc;
+        }
+        else
+        {
+            weakItem.OwnerDocument = Parent.OwnerDocument;
+        } ((IList<T>)_items).Insert(index, item);
         Parent.NotifyModifying();
     }
 

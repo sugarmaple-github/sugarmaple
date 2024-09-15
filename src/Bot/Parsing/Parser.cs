@@ -17,17 +17,18 @@ internal class Parser
             ASTNodeType.Category => ParseCategoryLink(token),
             ASTNodeType.FileLink => ParseFileLink(token),
             ASTNodeType.TableOfContents => new TableOfContents(),
-            ASTNodeType.Br => new BrMacro(),
+            ASTNodeType.Br => new BrMacro() { OwnerDocument = owner },
             ASTNodeType.Macro => ParseMacro(token),
-            ASTNodeType.Text => new Text(new StringSegment(_raw, token.Index, token.Length)),
+            ASTNodeType.Text => new Text(new StringSegment(_raw, token.Index, token.Length)) { OwnerDocument = owner },
             ASTNodeType.Table => ParseTable(token, owner),
             ASTNodeType.MarkupBracket => ParseMarkupBracket(token, owner),
-            ASTNodeType.Bold => new Bold { Children = ParseChildAsElementList(token, 0, owner) },
-            ASTNodeType.Italic => new Italic { Children = ParseChildAsElementList(token, 0, owner) },
+            ASTNodeType.Bold => new Bold { Children = ParseChildAsElementList(token, 0, owner), OwnerDocument = owner },
+            ASTNodeType.Italic => new Italic { Children = ParseChildAsElementList(token, 0, owner), OwnerDocument = owner },
             ASTNodeType.Redirect => new Redirect
             {
                 Reference = ParseChildAsString(token, 0),
-                Anchor = ParseChildAsNullableString(token, 1)
+                Anchor = ParseChildAsNullableString(token, 1),
+                OwnerDocument = owner,
             },
             _ => throw new NotImplementedException(),
         };

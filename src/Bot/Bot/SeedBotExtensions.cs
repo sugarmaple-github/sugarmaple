@@ -21,14 +21,15 @@ public static class SeedBotExtensions
         return docs;
     }
 
-    public static async IAsyncEnumerable<Document> GetViewsAsync(this IAsyncEnumerable<string> docs, Func<string> logGenerator, SeedBot self)
+    public static async IAsyncEnumerable<Document> GetViewsAsync(this IAsyncEnumerable<string> docs, SeedBot self)
     {
         await foreach ((var resp, var title) in docs.SelectAwait(async title => (await self.GetEditAsync(title), title)).Where(o => o.Item1.Item?.Text != null).Select(o => (o.Item1.Item, o.title)))
         {
             var doc = DocumentFactory.Default.Parse(resp!.Text);
             doc.Title = title;
+            doc.Token = resp!.Token;
+            doc.Bot = self;
             yield return doc;
-            await self.PostEditAsync(title, resp.Token, doc, logGenerator());
             doc.Dispose();
         }
     }
@@ -52,7 +53,8 @@ public static class SeedBotExtensions
 
     public static IAsyncEnumerable<Document> BacklinkBodiesAsync(this SeedBot _bot, string document, NamespaceMask @namespace, string fromValue, Func<string> logGenerator)
     {
-        return _bot.GetBacklinksForEditAsync(document, @namespace, fromValue).GetViewsAsync(logGenerator, _bot);
+        throw new Exception();
+        //return _bot.GetBacklinksForEditAsync(document, @namespace, fromValue).GetViewsAsync(logGenerator, _bot);
     }
 
     public static IAsyncEnumerable<IReferer> BacklinkReferersAsync(this SeedBot _bot, string document, NamespaceMask @namespace, string fromValue, string log)
@@ -169,11 +171,11 @@ public static class SeedBotExtensions
     /// 검색한 문서명을 중복 없이 반환합니다.
     /// </summary>
     /// <param name="self"></param>
-    /// <param name="target"></param>
-    /// <param name="q"></param>
-    /// <param name="namespace"></param>
+    /// <param name="target">"title_content", "title", "content", "raw" 중 하나를 입력합니다.</param>
+    /// <param name="q">검색어</param>
+    /// <param name="namespace">이름 공간을 입력 합니다.</param>
     /// <returns></returns>
-    public static IEnumerable<string> SearchFullAsync(this SeedCrawler self, string target, string q, string @namespace)
+    public static async IAsyncEnumerable<string> SearchFullAsync(this SeedCrawler self, string target, string q, string @namespace)
     {
         const int maxPage = 500;
         const int resultByPage = 20;

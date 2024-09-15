@@ -27,9 +27,12 @@ public class Literal : Clause
 
 public class Text : Clause
 {
+    public string WholeText { get; }
+
     internal Text(in StringSegment rawSource)
     {
         MarkupRawCache.Add(this, rawSource);
+        WholeText = rawSource;
     }
 }
 

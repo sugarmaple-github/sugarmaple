@@ -3,10 +3,10 @@
 using Sugarmaple.Text;
 using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Linq;
 using System.Threading.Tasks;
 
-public record struct EditPostResult(string Document, int Rev);
 
 /// <summary>
 /// 기본 API(https://doc.theseed.io/)에서 제공하는 기능들만 제공하는 클라이언트입니다.
@@ -15,36 +15,28 @@ public class SeedApiClient : ISeedApiClient
 {
     private readonly JsonClient _client;
 
-
     public event Action<Option<ViewResponse>>? GotEdit;
-    [Obsolete]
-    public event Action<EditGetError>? OnGetEditError;
-    [Obsolete]
-    public event Action<EditPostError>? OnPostEditError;
-    [Obsolete]
-    public event Action<string>? OnBacklinkError;
-    public event Action<string, string>? OnGetEditSuccessfully;
+    public event Action<string, EditGetError>? GotEditError;
+    public event Action<string, string>? GotEditSuccessfully;
+    public event Action<EditPostResult>? PostedSuccessfully;
+    public event Action<EditPostError>? PostedEditError;
+    public event Action<string>? GotBacklinkError;
     public event Action<string, Option<BacklinkResponse>>? GotBacklink;
-    public event Action<EditPostResult>? OnPostSuccessfully;
+
     public event Func<string, string, string>? ApiPosting;
 
     public string WikiUri { get; }
-
-    internal SeedApiClient(string wikiUri)
-    {
-        WikiUri = wikiUri;
-        _client = new(wikiUri);
-        _client.UpdateAuthHeader($"Bearer abc");
-    }
 
     /// <summary>
     /// Client 객체를 생성합니다.
     /// </summary>
     /// <param name="wikiUri">접근하고자 하는 위키의 Uri를 작성합니다.</param>
     /// <param name="apiToken">Api Token을 작성합니다.</param>
-    public SeedApiClient(string wikiUri, string apiToken) : this(wikiUri)
+    public SeedApiClient(string wikiUri, string apiToken)
     {
-        UpdateApiToken(apiToken);
+        WikiUri = wikiUri;
+        _client = new($"{wikiUri}/api/");
+        _client.UpdateAuthHeader($"Bearer {apiToken}");
     }
 
     #region Public Method
@@ -55,23 +47,43 @@ public class SeedApiClient : ISeedApiClient
     /// <returns>편집을 시행할 수 있는 뷰를 반환합니다.</returns>
     public async Task<Option<ViewResponse>> GetEditAsync(string document)
     {
-        var output = await _client.GetAsync<ViewResponse>(SeedUri.GetEditUri(document));
+        var output = await _client.GetAsync<ViewResponse>($"edit/{document}");
         if (output.TryGetValue(out var item))
         {
-            (string text, bool exists, string token, string status) = item;
-            if (status == null)
-            {
-                OnGetEditSuccessfully?.Invoke(document, text);
-            }
-            else
-                OnGetEditError?.Invoke(new(status, true) { Document = document });
+            (string text, bool exists, string token) = item;
+            GotEditSuccessfully?.Invoke(document, text);
         }
         else
-            OnGetEditError?.Invoke(new(output.Error, true));
+            GotEditError?.Invoke(document, new(output.Error));
         return output;
     }
 
-
+    /// <summary>
+    /// https://doc.theseed.io/#d17f65c0ee
+    /// </summary>
+    /// <param name="document">보내는 문서입니다.</param>
+    /// <param name="text">편집 내용</param>
+    /// <param name="log">편집 요약</param>
+    /// <param name="token">편집 토큰</param>
+    /// <returns></returns>
+    public async Task<Option<EditResponse>> PostEditAsync(string document, string text, string log, string token)
+    {
+        var intercepted = ApiPosting?.Invoke(document, text) ?? text;
+        var output = await _client.PostAsync<EditResponse, EditParameter>($"edit/{document}", new(text, log, token));
+        if (output.TryGetValue(out var item))
+        {
+            (var status, var rev) = item;
+            if (status == "success")
+            {
+                PostedSuccessfully?.Invoke(new(document, rev));
+            }
+            else
+                PostedEditError?.Invoke(new(status, true, document));
+        }
+        else
+            PostedEditError?.Invoke(new(output.Error, false, document));
+        return output;
+    }
 
     /// <summary>
     /// <paramref name="document"/>의 역링크 중에서 <paramref name="namespace" /> 이름공간에 있는 것을 반환합니다.
@@ -79,47 +91,23 @@ public class SeedApiClient : ISeedApiClient
     /// <param name="document">역링크 목록을 확인할 문서명입니다.</param>
     /// <param name="namespace">역링크 목록을 확인할 이름 공간입니다. 만약 해당 이름 공간의 역링크가 없을 경우, 문서 이름공간의 역링크를 출력합니다.</param>
     /// <param name="from">어떤 문자열부터의 역링크 목록을 확인할 것인지 반환합니다.</param>
-    /// <param name="flags">역링크의 타입을 정합니다.</param>
+    /// <param name="flag">역링크의 타입을 정합니다.</param>
     /// <returns>역링크의 결과 객체를 반환합니다.</returns>
     /// <inheritdoc cref="GetBacklinkFromAsync(string, string, string, BacklinkFlags)"/>
-    public Task<Option<BacklinkResponse>> GetBacklinkFromAsync(string document, string @namespace = "", string @from = "", BacklinkFlags flags = BacklinkFlags.All)
+    public async Task<Option<BacklinkResponse>> GetBacklinkFromAsync(string document, string @namespace = "", string @from = "", BacklinkFlags flag = BacklinkFlags.All)
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(@namespace);
         ArgumentNullException.ThrowIfNull(@from);
-        return GetBacklinkFromAsyncIn(document, @namespace, from, flags);
 
-        async Task<Option<BacklinkResponse>> GetBacklinkFromAsyncIn(string document, string @namespace = "", string @from = "", BacklinkFlags flags = BacklinkFlags.All)
-        {
-            var output = await _client.GetAsync<BacklinkResponse>(SeedUri.GetBacklinkFrom(document, @namespace, from, (int)flags));
-            GotBacklink?.Invoke(document, output);
-            return output;
-        }
-    }
-
-    public async Task<Option<EditResponse>> PostEditAsync(string document, string text, string log, string token)
-    {
-        var intercepted = ApiPosting?.Invoke(document, text) ?? text;
-        var output = await _client.PostAsync<EditResponse, EditParameter>(
-            CreateUri("edit", document).Build(), new(text, log, token));
-        if (output.TryGetValue(out var item))
-        {
-            (var status, var rev) = item;
-            if (status == "success")
-            {
-                OnPostSuccessfully?.Invoke(new(document, rev));
-            }
-            else
-                OnPostEditError?.Invoke(new(status, true, document));
-        }
-        else
-            OnPostEditError?.Invoke(new(output.Error, false, document));
+        var queryStr = GetQueryCollection(new() {
+                { nameof(@namespace),   @namespace              },
+                { nameof(@from),        @from                   },
+                { nameof(flag),         ((int)flag).ToString()  }});
+        var output = await _client.GetAsync<BacklinkResponse>($"backlink/{document}?{queryStr!}");
+        GotBacklink?.Invoke(document, output);
         return output;
     }
-
-    private static RelativeUri CreateUri() => RelativeUri.Create("api");
-    private static RelativeUri CreateUri(string path, string document) => CreateUri().AddPath(path).AddPath(Uri.EscapeDataString(document));
-
 
     /// <summary>
     /// <paramref name="document"/>의 역링크 중에서 <paramref name="namespace" /> 이름공간에 있는 것을 반환합니다.
@@ -127,28 +115,34 @@ public class SeedApiClient : ISeedApiClient
     /// <param name="document"></param>
     /// <param name="namespace"></param>
     /// <param name="until"></param>
-    /// <param name="flags"></param>
+    /// <param name="flag"></param>
     /// <returns></returns>
-    public async Task<Option<BacklinkResponse>> GetBacklinkUntilAsync(string document, string @namespace, string until = "", BacklinkFlags flags = BacklinkFlags.All)
+    public async Task<Option<BacklinkResponse>> GetBacklinkUntilAsync(string document, string @namespace, string until = "", BacklinkFlags flag = BacklinkFlags.All)
     {
         ArgumentNullException.ThrowIfNull(document);
         ArgumentNullException.ThrowIfNull(@namespace);
         ArgumentNullException.ThrowIfNull(until);
 
-        var output = await _client.GetAsync<BacklinkResponse>(SeedUri.GetBacklinkUntil(document, @namespace, until, (int)flags));
+        var queryStr = GetQueryCollection(new() {
+                { nameof(@namespace),   @namespace              },
+                { nameof(until),        until                   },
+                { nameof(flag),         ((int)flag).ToString()  }});
+        var output = await _client.GetAsync<BacklinkResponse>($"backlink/{document}?{queryStr}");
         return output;
     }
 
-    private void UpdateApiToken(string apiToken)
+    private static NameValueCollection GetQueryCollection(NameValueCollection queries)
     {
-        _client.UpdateAuthHeader($"Bearer {apiToken}");
+        var queryStr = System.Web.HttpUtility.ParseQueryString("");
+        queryStr.Add(queries);
+        return queryStr;
     }
     #endregion
 }
 
 public interface ISeedApiClient
 {
-    event Action<string, string>? OnGetEditSuccessfully;
+    event Action<string, string>? GotEditSuccessfully;
 
     public Task<Option<ViewResponse>> GetEditAsync(string document);
     public Task<Option<BacklinkResponse>> GetBacklinkFromAsync(string document, string @namespace = "", string @from = "", BacklinkFlags flags = BacklinkFlags.All);

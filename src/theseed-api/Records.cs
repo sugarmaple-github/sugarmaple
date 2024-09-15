@@ -1,6 +1,7 @@
 ﻿namespace Sugarmaple.TheSeed.Api;
 using Sugarmaple.Text;
 using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
 
 internal record struct EditParameter(string Text, string Log, string Token);
 
@@ -17,6 +18,7 @@ public record BacklinkResponse(
 /// <param name="Namespace"></param>
 /// <param name="Count"></param>
 public record struct NamespaceCountPair(string Namespace, int Count);
+
 /// <summary>
 /// 역링크 검색 결과로 반환된 단일 역링크 항목입니다.
 /// </summary>
@@ -24,25 +26,46 @@ public record struct NamespaceCountPair(string Namespace, int Count);
 /// <param name="Flags"></param>
 public record struct BacklinkPair(string Document, string Flags);
 public record EditResponse(string Status, int Rev);
-public record ViewResponse(string Text, bool Exists, string Token, string Status);
+public record ViewResponse(string Text, bool Exists, string Token);
 
 public class EditGetError
 {
-    string _data;
-    bool _isJson;
+    string _raw;
+    string? _jsonStatus;
 
-    public EditGetError(string data, bool isJson)
+    internal EditGetError(string raw)
     {
-        _data = data;
-        _isJson = isJson;
+        _raw = raw;
+        if (TryDeserialize<SeedErrorResponse>(_raw, out var item))
+            _jsonStatus = item.Status;
     }
 
-    public string Data => _data;
-    public bool IsJson => _isJson;
-    public string Document { get; init; }
+    public string Raw => _raw;
+    public bool IsJson => _jsonStatus != null;
+    public bool IsLackOfPermission() => _jsonStatus?.StartsWith("편집 권한이 부족합니다.") ?? false;
 
-    public bool IsLackOfPermission => _data.StartsWith("편집 권한이 부족합니다.");
+    public class SeedErrorResponse
+    {
+        public string Status { get; set; }
+    }
+
+    static bool TryDeserialize<T>(string json, [NotNullWhen(true)] out T? result)
+    {
+        try
+        {
+            result = JsonSerializer.Deserialize<T>(json);
+            return result != null;
+        }
+        catch (JsonException)
+        {
+            result = default;
+            return false;
+        }
+    }
 }
+
+
+public record struct EditPostResult(string Document, int Rev);
 
 /// <summary>
 /// 역링크 검색 옵션을 지정합니다.

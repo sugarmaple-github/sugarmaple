@@ -48,7 +48,7 @@ public class OrderResult
 
 public record Session(SessionAction[] Actions, SessionTask[] Schedule, SessionProgress Progress);
 public record SessionTask(int ActionId);
-public record SessionProgress(int Label, Dictionary<string, string> Config);
+public record SessionProgress(int Label, Dictionary<string, object> Config);
 
 public record SessionAction(string Type, object Args, int Id);
 public record ConfigArgs(string Key, string Value);

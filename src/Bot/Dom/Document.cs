@@ -1,13 +1,20 @@
 ﻿namespace Sugarmaple.TheSeed.Namumark;
 
+using net.sf.saxon.functions;
+using Sugarmaple.Bot;
+using Sugarmaple.TheSeed.Api;
 using System.Text;
 
 public class Document : FixedClauseParent<Document, Paragraph>, IDisposable
 {
     public string BaseUri { get; internal set; }
     public string Title { get; internal set; }
-
+    public string Token { get; internal set; }
+    public Api.ISeedApiClient ApiClient { get; internal set; }
+    public SeedBot Bot { get; internal set; }
     protected override IParentElement? ParentInner { get => null; set => throw new InvalidOperationException("Document Element can't use Parent"); }
+
+
 
     public void Dispose()
     {
@@ -15,6 +22,11 @@ public class Document : FixedClauseParent<Document, Paragraph>, IDisposable
         {
             MarkupRawCache.Remove(item);
         }
+    }
+
+    public Task<Option<EditResponse>> Post(string log)
+    {
+        return Bot.PostEditAsync(Title, Token, this, log);
     }
 
     public IEnumerable<Clause> QuerySelectorAll(string selectors) => QuerySelectorAll<Clause>(selectors);

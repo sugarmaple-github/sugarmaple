@@ -91,10 +91,10 @@ internal class ConsoleBotHandler
         }
     }
 
-    public void OnLackOfPermission(EditGetError obj)
+    public void OnLackOfPermission(string document, EditGetError obj)
     {
         //ConsoleMessage.Default.ShowMessage("LackOfPermission", obj.Data);
-        Console.WriteLine($"ACL 권한이 부족하여 수정하지 못했습니다. : '{obj.Document}' 문서\n{obj.Data}");
+        Console.WriteLine($"ACL 권한이 부족하여 수정하지 못했습니다. : '{document}' 문서\n{obj.Raw}");
     }
 
     public void OnEveryPost(EditPostResult arg)
@@ -118,17 +118,17 @@ internal class ConsoleBotCreator
             File.WriteAllText("after_edit.txt", newer);
         };
 
-        bot.OnGetEditSuccessfully += state.BeforeEveryEdit;
+        bot.GotEditSuccessfully += state.BeforeEveryEdit;
         bot.DocumentPosting += state.DocumentPosting;
         bot.ApiPosting += state.ApiPosting;
         //bot.OnPostSameDoc += state.OnEditWhenNoDiff;
-        bot.OnPostSuccessfully += state.OnEveryPost;
-        bot.OnGetEditError += o =>
+        bot.PostedSuccessfully += state.OnEveryPost;
+        bot.GotEditError += (doc, o) =>
         {
-            if (o.IsLackOfPermission)
-                state.OnLackOfPermission(o);
+            if (o.IsLackOfPermission())
+                state.OnLackOfPermission(doc, o);
         };
-        bot.OnPostEditError += o =>
+        bot.PostedEditError += o =>
         {
             if (o.HasSameDocumentContent)
             {
@@ -139,7 +139,7 @@ internal class ConsoleBotCreator
                 Console.WriteLine("Invalid Request Body: 너무 깁니다. 수동으로 편집해주세요.");
             }
         };
-        bot.OnBacklinkError += o =>
+        bot.GotBacklinkError += o =>
         {
             Console.WriteLine("역링크 도중에 에러가 발생했습니다.");
             Console.WriteLine(o);

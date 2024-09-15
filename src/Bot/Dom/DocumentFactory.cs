@@ -1,5 +1,7 @@
 ﻿namespace Sugarmaple.TheSeed.Namumark;
 
+using org.w3c.dom.css;
+using Sugarmaple.TheSeed.Api;
 using Sugarmaple.TheSeed.Namumark.Parsing;
 
 public class DocumentFactory
@@ -14,6 +16,13 @@ public class DocumentFactory
         var parser = new Parser();
         parser._raw = content;
         var doc = (Document)parser.Parse(astTree);
+        return doc;
+    }
+
+    public Document Parse(string text, string token)
+    {
+        var doc = Parse(text);
+        doc.Token = token;
         return doc;
     }
 }

@@ -6,6 +6,17 @@ using System.CommandLine;
 
 public class MainCommand : RootCommand
 {
+    private readonly SessionHandler _sessionHandler = new();
+
+    public event Action<string>? SessionCreated {
+        add => _sessionHandler.SessionCreated += value;
+        remove => _sessionHandler.SessionCreated -= value;
+    }
+    public event Action<string>? SessionExecuting {
+        add => _sessionHandler.SessionExecuting += value;
+        remove => _sessionHandler.SessionExecuting -= value;
+    }
+
     internal MainCommand()
     {
         //Add(Profile());
@@ -17,7 +28,7 @@ public class MainCommand : RootCommand
         return cmd;
     }
 
-    private static Command Session()
+    private Command Session()
     {
         var sessionNameArg = new Argument<string>();
         var createCmd = new Command("create")
@@ -30,26 +41,28 @@ public class MainCommand : RootCommand
         {
             sessionNameArg, commandArg
         };
-        addCommand.SetHandler(o => SessionHandler.AddCommand(o, ReadCommandSet()), sessionNameArg);
+        addCommand.SetHandler(o => _sessionHandler.AddCommand(o, ReadCommandSet()), sessionNameArg);
 
-        createCmd.SetHandler(SessionHandler.Create, sessionNameArg);
+        createCmd.SetHandler(_sessionHandler.Create, sessionNameArg);
 
-        var executeCommand = new Command("execute");
-
-        var taskNameArgument = new Argument<string>();
-        executeCommand.Add(taskNameArgument);
+        var executeCommand = new Command("execute")
+        {
+            sessionNameArg
+        };
 
         var checkingOption = new Option<bool>("--check", () => true);
         executeCommand.Add(checkingOption);
 
-        executeCommand.SetHandler(async (task, checking) => await Progress(task, DefaultBot.Handler, checking), taskNameArgument, checkingOption);
+        executeCommand.SetHandler(_sessionHandler.Execute, sessionNameArg, checkingOption);
+        // executeCommand.SetHandler(async (session, checking) => await Progress(session, DefaultBot.Handler, checking), 
+        //     sessionNameArg, checkingOption);
 
         var resetCmd = new Command("reset")
         {
-           taskNameArgument
+           sessionNameArg
         };
 
-        resetCmd.SetHandler(Reset, taskNameArgument);
+        resetCmd.SetHandler(Reset, sessionNameArg);
         var cmd = new Command("session")
         {
             createCmd, addCommand, executeCommand, resetCmd
@@ -96,12 +109,9 @@ public class MainCommand : RootCommand
         json.WriteTo(jsonWriter);
     }
 
-    private static Task Progress(string session, ConsoleBotHandler handler, bool checking)
+    private Task Progress(string session, ConsoleBotHandler handler, bool checking)
     {
-        Console.Clear();
-        ConsoleMessage.Default.ShowMessage("OrderStart", session);
-
         handler.CheckEditMode = checking;
-        return SessionHandler.Execute(session, handler.Bot);
+        return _sessionHandler.Execute(session, handler.Bot);
     }
 }

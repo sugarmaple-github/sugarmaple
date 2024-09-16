@@ -46,9 +46,13 @@ public class OrderResult
     public OrderDenied Denied { get; } = new();
 }
 
-public record Session(SessionAction[] Actions, SessionTask[] Schedule, SessionProgress Progress);
+public record Session(List<SessionAction> Actions, List<SessionTask> Schedule, SessionProgress Progress){
+    public Session() : this(new(), new(), new()){}
+}
 public record SessionTask(int ActionId);
-public record SessionProgress(int Label, Dictionary<string, object> Config);
+public record SessionProgress(int Label, Dictionary<string, object> Config) {
+    public SessionProgress(): this(default, new()) {}
+}
 
 public record SessionAction(string Type, object Args, int Id);
 public record ConfigArgs(string Key, string Value);

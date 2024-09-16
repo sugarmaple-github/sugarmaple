@@ -76,11 +76,6 @@ internal class ConsoleBotHandler
         return ret;
     }
 
-    public void OnEditWhenNoDiff(string doc, Document revised)
-    {
-        //Config.SetEditResult(revised.OuterMarkup);
-    }
-
     public void OnBacklink(string document, Option<BacklinkResponse> resultOpt)
     {
         if (resultOpt.TryGetValue(out var result))

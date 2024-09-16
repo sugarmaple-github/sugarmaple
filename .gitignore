@@ -407,3 +407,5 @@ src/theseed-api/AssemblyInfo.cs
 /src/Bot/data/*
 /src/Bot/config.json
 /src/Bot/config/config.json
+.vscode/launch.json
+src/Bot/sessions/a.json

@@ -36,7 +36,9 @@ internal static class FileUtil
 
     public static void WriteJson<T>(string path, T value)
     {
-        using var stream = new FileStream(path, FileMode.Truncate, FileAccess.Write);
+        using var stream = File.Exists(path) ? 
+            new FileStream(path, FileMode.Truncate, FileAccess.Write) :
+            new FileStream(path, FileMode.Create, FileAccess.Write);
         using var streamWriter = new StreamWriter(stream);
         using var jsonWriter = new JsonTextWriter(streamWriter);
         jsonWriter.Indentation = 4;

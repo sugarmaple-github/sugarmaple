@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.CommandLine;
 using System.Diagnostics;
-
+[Obsolete]
 internal class BacklinkCommand_old : Command
 {
     public BacklinkCommand_old(List<OrderDelegate> orders) : base("backlink")
@@ -89,7 +89,7 @@ internal class BacklinkCommand_old : Command
         return cmd;
     }
 }
-
+[Obsolete]
 internal class SearchCommand : Command
 {
     public SearchCommand(List<OrderDelegate> orders) : base("search")
@@ -120,7 +120,7 @@ internal class SearchCommand : Command
         return cmd;
     }
 }
-
+[Obsolete]
 internal class OrderAtomCommand : RootCommand
 {
     //[Obsolete]
@@ -195,7 +195,7 @@ internal class OrderAtomCommand : RootCommand
     //    return ret;
     //}
 }
-
+[Obsolete]
 public class OrderCompileInfo
 {
     public List<(OrderDelegate Processor, int Label)> Processors = new();

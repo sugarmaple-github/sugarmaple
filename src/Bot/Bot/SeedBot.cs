@@ -1,7 +1,4 @@
-﻿#define SingleThread
-#define TwitterMVP
-#define ApiClientRevise
-namespace Sugarmaple.Bot;
+﻿namespace Sugarmaple.Bot;
 
 using Sugarmaple.TheSeed.Api;
 using Sugarmaple.TheSeed.Crawler;
